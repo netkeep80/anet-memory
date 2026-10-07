@@ -31,7 +31,7 @@ persistent ANet memory
 transport / storage adapters
 ```
 
-The first experimentally proven cross-chat transport is ChatGPT Library: two isolated Kata execution sandboxes exchanged byte-identical files through Library upload -> lookup -> materialize while direct sandbox-to-sandbox networking remained unavailable.
+The first experimentally proven cross-chat transport is ChatGPT Library: two isolated Kata execution sandboxes exchanged byte-identical files through Library upload -> lookup -> materialize while direct sandbox-to-sandbox networking remained unavailable.\n\nRuntime-topology experiments additionally established that a scheduled/model worker can communicate bidirectionally with a live daemon over localhost when both share a sandbox, but sandbox affinity and `/mnt/data` persistence are not durable. The supported design boundary is therefore **Library-backed durable cross-sandbox transport plus a verified localhost fast path inside a shared live sandbox**. See [`experiments/runtime-topology/README.md`](experiments/runtime-topology/README.md).
 
 ## Project authority
 
@@ -44,7 +44,7 @@ The first experimentally proven cross-chat transport is ChatGPT Library: two iso
 - Fresh-chat bootstrap: #6
 - Library consistency research: #7
 - A-memory/backend abstraction: #8
-- Evaluation: #9
+- Evaluation: #9\n- ChatGPT runtime topology research: #43 and `experiments/runtime-topology/README.md`
 
 This repository does not define a new MTS ontology. FORMAL/MTS semantics remain owned by their upstream specification.
 
