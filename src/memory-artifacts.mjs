@@ -179,6 +179,7 @@ export async function rebuildArtifactCatalog(root, { now = () => new Date().toIS
 
   const artifacts = {};
   const sources = {};
+  const conflictedIds = new Set();
   const invalid = [];
   const duplicates = [];
   const conflicts = [];
@@ -187,6 +188,16 @@ export async function rebuildArtifactCatalog(root, { now = () => new Date().toIS
     const relative = path.relative(absoluteRoot, file).split(path.sep).join('/');
     try {
       const artifact = parseMemoryArtifact(await readFile(file, 'utf8'));
+
+      if (conflictedIds.has(artifact.artifact_id)) {
+        conflicts.push({
+          artifact_id: artifact.artifact_id,
+          first_path: sources[artifact.artifact_id],
+          conflicting_path: relative,
+        });
+        continue;
+      }
+
       const prior = artifacts[artifact.artifact_id];
 
       if (!prior) {
@@ -209,8 +220,8 @@ export async function rebuildArtifactCatalog(root, { now = () => new Date().toIS
         first_path: sources[artifact.artifact_id],
         conflicting_path: relative,
       });
+      conflictedIds.add(artifact.artifact_id);
       delete artifacts[artifact.artifact_id];
-      delete sources[artifact.artifact_id];
     } catch (error) {
       invalid.push({
         path: relative,
