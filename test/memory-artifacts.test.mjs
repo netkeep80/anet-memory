@@ -130,6 +130,39 @@ test('artifact catalog rebuild is deterministic, digest-backed and reports inval
   assert.notEqual(withInvalid.source.source_sha256, first.source.source_sha256);
 });
 
+test('catalog fails closed when multiple files claim one artifact_id with conflicting content', async (t) => {
+  const root = await tempRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const original = artifact('conflict-a');
+  await appendMemoryArtifact(root, original);
+
+  const dir = path.join(root, 'artifacts');
+  await writeFile(
+    path.join(dir, 'alias-duplicate.json'),
+    JSON.stringify(original, null, 2) + '\n',
+    'utf8',
+  );
+  await writeFile(
+    path.join(dir, 'alias-conflict.json'),
+    JSON.stringify({ ...original, summary: 'conflicting semantic content' }, null, 2) + '\n',
+    'utf8',
+  );
+  await writeFile(
+    path.join(dir, 'alias-after-conflict.json'),
+    JSON.stringify(original, null, 2) + '\n',
+    'utf8',
+  );
+
+  const catalog = await rebuildArtifactCatalog(root);
+
+  assert.equal(catalog.source.duplicate_artifacts, 1);
+  assert.equal(catalog.source.conflicting_artifacts, 2);
+  assert.equal(catalog.artifacts['conflict-a'], undefined);
+  assert.ok(catalog.source.conflicts.every((item) => item.artifact_id === 'conflict-a'));
+});
+
+
 test('relation-bearing graph joins semantic records with independent lifecycle authority', async (t) => {
   const root = await tempRoot();
   t.after(() => rm(root, { recursive: true, force: true }));
