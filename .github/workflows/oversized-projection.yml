@@ -1,0 +1,107 @@
+name: Oversized projection benchmark
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build opaque-answer oversized corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RUN_ID="oversized-projection-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "RUN_ID=${RUN_ID}" >> "${GITHUB_ENV}"
+
+          node experiments/oversized-projection/prepare.mjs \
+            --memory-root _oversized-benchmark-memory \
+            --run-id "${RUN_ID}" \
+            --noise-count 32 \
+            --noise-bytes 5000 \
+            > benchmark-prepare.json
+
+          node experiments/fresh-chat-bootstrap/snapshot.mjs export \
+            --memory-root _oversized-benchmark-memory \
+            --out benchmark-export \
+            --manifest-id "${RUN_ID}" \
+            --project anet-memory-oversized-benchmark \
+            --root-artifact "${RUN_ID}-task" \
+            --provenance github:issue/49 \
+            --provenance "github:commit/${GITHUB_SHA}" \
+            > benchmark-export-plan.json
+
+          node experiments/oversized-projection/measure.mjs \
+            --bundle-root benchmark-export \
+            --manifest "benchmark-export/manifests/${RUN_ID}.json" \
+            --prepare-result benchmark-prepare.json \
+            --out benchmark-meta.json \
+            --projection-max-bytes 8000 \
+            --min-ratio 10 \
+            > benchmark-measure-summary.json
+
+      - name: Verify benchmark semantics without exposing plaintext answer
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node experiments/fresh-chat-bootstrap/snapshot.mjs import \
+            --memory-root _oversized-benchmark-consumer \
+            --bundle-root benchmark-export \
+            --manifest "benchmark-export/manifests/${RUN_ID}.json" \
+            > benchmark-import.json
+
+          node experiments/fresh-chat-bootstrap/snapshot.mjs project \
+            --memory-root _oversized-benchmark-consumer \
+            --project anet-memory-oversized-benchmark \
+            --seed-artifact "${RUN_ID}-task" \
+            --relation-type depends_on \
+            --relation-type evidence \
+            --max-nodes 8 \
+            --max-bytes 8000 \
+            --max-depth 0 \
+            > _benchmark-shallow.json
+
+          node experiments/fresh-chat-bootstrap/snapshot.mjs project \
+            --memory-root _oversized-benchmark-consumer \
+            --project anet-memory-oversized-benchmark \
+            --seed-artifact "${RUN_ID}-task" \
+            --relation-type depends_on \
+            --relation-type evidence \
+            --max-nodes 8 \
+            --max-bytes 8000 \
+            --max-depth 2 \
+            > _benchmark-expanded.json
+
+          node experiments/oversized-projection/verify.mjs \
+            --run-id "${RUN_ID}" \
+            --meta benchmark-meta.json \
+            --shallow _benchmark-shallow.json \
+            --expanded _benchmark-expanded.json \
+            > benchmark-verification.json
+
+      - name: Upload immutable benchmark snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: anet-memory-oversized-projection-snapshot-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            benchmark-export/
+            benchmark-prepare.json
+            benchmark-export-plan.json
+            benchmark-meta.json
+            benchmark-measure-summary.json
+            benchmark-import.json
+            benchmark-verification.json
+          if-no-files-found: error
+          retention-days: 90
