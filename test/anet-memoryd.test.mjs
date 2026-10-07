@@ -264,3 +264,45 @@ test('daemon exposes lifecycle memory state/current view and background event di
     memoryState.journal.source_sha256,
   );
 });
+
+
+test('memory event immutable conflict is surfaced as HTTP 409', async (t) => {
+  const root = await tempRoot();
+  const daemon = await startMemoryDaemon({
+    root,
+    host: '127.0.0.1',
+    port: 0,
+    scanIntervalMs: 50,
+  });
+  t.after(async () => {
+    await daemon.close();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const base = `http://127.0.0.1:${daemon.port}`;
+  const first = createMemoryEvent({
+    eventId: 'conflict-event-1',
+    artifactId: 'artifact-conflict',
+    sequence: 1,
+    action: 'propose',
+    authority: 'model',
+    actor: 'chat-a',
+    createdAt: '2026-10-07T22:10:00.000Z',
+  });
+
+  assert.equal((await fetch(`${base}/memory/event`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(first),
+  })).status, 201);
+
+  const conflicting = { ...first, actor: 'chat-b' };
+  const response = await fetch(`${base}/memory/event`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(conflicting),
+  });
+  assert.equal(response.status, 409);
+  const body = await response.json();
+  assert.equal(body.error, 'EVENT_ID_CONFLICT');
+});
