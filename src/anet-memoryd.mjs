@@ -13,6 +13,13 @@ import {
   validateEnvelope,
 } from './sandbox-bus.mjs';
 import { MemoryEventError, appendMemoryEvent, rebuildMemoryState } from './memory-events.mjs';
+import {
+  MemoryArtifactError,
+  appendMemoryArtifact,
+  buildMemoryGraph,
+  rebuildArtifactCatalog,
+} from './memory-artifacts.mjs';
+import { MemoryProjectionError, projectMemoryGraph } from './memory-projection.mjs';
 import { buildMemoryViews } from './memory-views.mjs';
 
 const STATE_PROTOCOL = 'anet-memoryd/state-v1';
@@ -158,6 +165,8 @@ export async function startMemoryDaemon({
     state: null,
     memory_state: null,
     memory_view: null,
+    artifact_catalog: null,
+    memory_graph: null,
   };
 
   let activeScan = null;
@@ -168,7 +177,9 @@ export async function startMemoryDaemon({
         const state = await rebuildState(absoluteRoot);
         const memoryRoot = path.join(absoluteRoot, 'memory');
         const memoryState = await rebuildMemoryState(memoryRoot);
+        const artifactCatalog = await rebuildArtifactCatalog(memoryRoot);
         const memoryView = buildMemoryViews(memoryState);
+        const memoryGraph = buildMemoryGraph(memoryState, artifactCatalog);
         await atomicWrite(
           path.join(memoryRoot, 'views', 'memory-current.json'),
           `${JSON.stringify(memoryView, null, 2)}\n`,
@@ -180,10 +191,14 @@ export async function startMemoryDaemon({
         runtime.state = state;
         runtime.memory_state = memoryState;
         runtime.memory_view = memoryView;
+        runtime.artifact_catalog = artifactCatalog;
+        runtime.memory_graph = memoryGraph;
         return {
           transport: state,
           memory_state: memoryState,
           memory_view: memoryView,
+          artifact_catalog: artifactCatalog,
+          memory_graph: memoryGraph,
         };
       } catch (error) {
         runtime.last_scan_error = {
@@ -196,6 +211,12 @@ export async function startMemoryDaemon({
       }
     })();
     return activeScan;
+  };
+
+  const scanAfterMutation = async () => {
+    const priorScan = activeScan;
+    if (priorScan) await priorScan;
+    return scanOnce();
   };
 
   await scanOnce();
@@ -215,6 +236,7 @@ export async function startMemoryDaemon({
           last_scan_at: runtime.last_scan_at,
           last_scan_error: runtime.last_scan_error,
           memory_journal_source_sha256: runtime.memory_state?.journal?.source_sha256 ?? null,
+          semantic_artifact_source_sha256: runtime.artifact_catalog?.source?.source_sha256 ?? null,
         });
       }
 
@@ -233,6 +255,23 @@ export async function startMemoryDaemon({
         return sendJson(response, 200, runtime.memory_view);
       }
 
+      if (request.method === 'GET' && url.pathname === '/memory/graph') {
+        if (!runtime.memory_graph) await scanOnce();
+        return sendJson(response, 200, runtime.memory_graph);
+      }
+
+      if (request.method === 'POST' && url.pathname === '/memory/project') {
+        const body = await readJsonBody(request, maxBodyBytes);
+        if (!runtime.memory_graph) await scanOnce();
+        const projection = projectMemoryGraph(
+          runtime.memory_graph,
+          body.query,
+          body.budget,
+          body.policy ?? {},
+        );
+        return sendJson(response, 200, projection);
+      }
+
       if (request.method === 'POST' && url.pathname === '/scan') {
         return sendJson(response, 200, await scanOnce());
       }
@@ -240,7 +279,7 @@ export async function startMemoryDaemon({
       if (request.method === 'POST' && url.pathname === '/ingest') {
         const envelope = await readJsonBody(request, maxBodyBytes);
         const result = await ingestEnvelope(absoluteRoot, envelope);
-        await scanOnce();
+        await scanAfterMutation();
         return sendJson(response, result.status === 'ingested' ? 201 : 200, {
           ...result,
           state: runtime.state,
@@ -250,11 +289,22 @@ export async function startMemoryDaemon({
       if (request.method === 'POST' && url.pathname === '/memory/event') {
         const event = await readJsonBody(request, maxBodyBytes);
         const result = await appendMemoryEvent(path.join(absoluteRoot, 'memory'), event);
-        await scanOnce();
+        await scanAfterMutation();
         return sendJson(response, result.status === 'appended' ? 201 : 200, {
           ...result,
           memory_state: runtime.memory_state,
           current_view: runtime.memory_view,
+        });
+      }
+
+      if (request.method === 'POST' && url.pathname === '/memory/artifact') {
+        const artifact = await readJsonBody(request, maxBodyBytes);
+        const result = await appendMemoryArtifact(path.join(absoluteRoot, 'memory'), artifact);
+        await scanAfterMutation();
+        return sendJson(response, result.status === 'appended' ? 201 : 200, {
+          ...result,
+          artifact_catalog: runtime.artifact_catalog,
+          memory_graph: runtime.memory_graph,
         });
       }
 
@@ -264,10 +314,18 @@ export async function startMemoryDaemon({
         ['MESSAGE_PATH_CONFLICT', 'MESSAGE_ID_CONFLICT', 'CHANNEL_FORK'].includes(error.code);
       const memoryConflict = error instanceof MemoryEventError &&
         ['EVENT_ID_CONFLICT', 'ARTIFACT_EVENT_FORK'].includes(error.code);
-      return sendJson(response, transportConflict || memoryConflict ? 409 : 400, {
-        error: error?.code ?? 'REQUEST_ERROR',
-        message: error?.message ?? String(error),
-      });
+      const artifactConflict = error instanceof MemoryArtifactError &&
+        error.code === 'ARTIFACT_ID_CONFLICT';
+      const projectionError = error instanceof MemoryProjectionError;
+      return sendJson(
+        response,
+        transportConflict || memoryConflict || artifactConflict ? 409 : 400,
+        {
+          error: error?.code ?? 'REQUEST_ERROR',
+          message: error?.message ?? String(error),
+          ...(projectionError ? { details: error.details ?? {} } : {}),
+        },
+      );
     }
   });
 
@@ -293,6 +351,8 @@ export async function startMemoryDaemon({
     getState: () => runtime.state,
     getMemoryState: () => runtime.memory_state,
     getMemoryView: () => runtime.memory_view,
+    getArtifactCatalog: () => runtime.artifact_catalog,
+    getMemoryGraph: () => runtime.memory_graph,
     getRuntime: () => ({ ...runtime }),
     close: async () => {
       clearInterval(timer);
