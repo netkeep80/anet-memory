@@ -78,3 +78,79 @@ jobs:
             source-bundle-verify.json
           if-no-files-found: error
           retention-days: 90
+
+
+  history-rationale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build deterministic history-rationale source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUNDLE="anet-memory-source-bundle-history-rationale-${GITHUB_SHA}.mjs"
+          CREATED_AT="$(git show -s --format=%cI HEAD)"
+
+          node experiments/source-bundle/source-bundle.mjs build \
+            --root . \
+            --out "${BUNDLE}" \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile history-rationale \
+            --created-at "${CREATED_AT}" \
+            --entrypoint experiments/fresh-chat-bootstrap/snapshot.mjs \
+            --entrypoint experiments/history-rationale/prepare.mjs \
+            --file package.json \
+            --file experiments/fresh-chat-bootstrap/snapshot.mjs \
+            --file experiments/history-rationale/prepare.mjs \
+            --file src/memory-library.mjs \
+            --file src/memory-artifacts.mjs \
+            --file src/memory-events.mjs \
+            --file src/memory-views.mjs \
+            --file src/memory-bootstrap.mjs \
+            --file src/memory-projection.mjs \
+            | tee history-rationale-source-bundle-build.json
+
+          node "${BUNDLE}" verify \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile history-rationale \
+            | tee history-rationale-source-bundle-verify.json
+
+          node "${BUNDLE}" unpack \
+            --out _history-rationale-source-checkout \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile history-rationale
+
+          node -e "import('./_history-rationale-source-checkout/experiments/fresh-chat-bootstrap/snapshot.mjs')"
+          node -e "import('./_history-rationale-source-checkout/experiments/history-rationale/prepare.mjs')"
+
+          cmp package.json _history-rationale-source-checkout/package.json
+          cmp experiments/fresh-chat-bootstrap/snapshot.mjs \
+            _history-rationale-source-checkout/experiments/fresh-chat-bootstrap/snapshot.mjs
+          cmp experiments/history-rationale/prepare.mjs \
+            _history-rationale-source-checkout/experiments/history-rationale/prepare.mjs
+          cmp src/memory-library.mjs _history-rationale-source-checkout/src/memory-library.mjs
+          cmp src/memory-artifacts.mjs _history-rationale-source-checkout/src/memory-artifacts.mjs
+          cmp src/memory-events.mjs _history-rationale-source-checkout/src/memory-events.mjs
+          cmp src/memory-views.mjs _history-rationale-source-checkout/src/memory-views.mjs
+          cmp src/memory-bootstrap.mjs _history-rationale-source-checkout/src/memory-bootstrap.mjs
+          cmp src/memory-projection.mjs _history-rationale-source-checkout/src/memory-projection.mjs
+
+      - name: Upload immutable history-rationale source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: anet-memory-source-bundle-history-rationale-${{ github.sha }}
+          path: |
+            anet-memory-source-bundle-history-rationale-${{ github.sha }}.mjs
+            history-rationale-source-bundle-build.json
+            history-rationale-source-bundle-verify.json
+          if-no-files-found: error
+          retention-days: 90
