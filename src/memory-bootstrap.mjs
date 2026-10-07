@@ -31,7 +31,10 @@ export function bootstrapMemoryGraph(
       terms: normalized.task_terms,
     },
     budget,
-    policy,
+    {
+      max_seed_candidates: 1,
+      ...policy,
+    },
   );
 
   const workingSet = {
