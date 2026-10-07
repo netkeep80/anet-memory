@@ -18,6 +18,7 @@ import {
 } from '../../src/memory-artifacts.mjs';
 import { parseMemoryEvent, rebuildMemoryState } from '../../src/memory-events.mjs';
 import { bootstrapMemoryGraph } from '../../src/memory-bootstrap.mjs';
+import { projectMemoryGraph } from '../../src/memory-projection.mjs';
 
 const RUN_PROTOCOL = 'anet-memory/fresh-chat-bootstrap-run/1';
 
@@ -28,6 +29,7 @@ async function main(argv) {
   if (command === 'export') return exportSnapshot(args);
   if (command === 'import') return importSnapshot(args);
   if (command === 'bootstrap') return bootstrapSnapshot(args);
+  if (command === 'project') return projectSnapshot(args);
 
   throw new Error(usage());
 }
@@ -182,6 +184,53 @@ async function bootstrapSnapshot(args) {
   }, null, 2) + '\n');
 }
 
+async function projectSnapshot(args) {
+  const memoryRoot = required(args, 'memory-root');
+  const project = required(args, 'project');
+  const seedIds = many(args, 'seed-artifact');
+  const terms = many(args, 'term');
+  if (seedIds.length === 0 && terms.length === 0) {
+    throw new Error('project requires at least one --seed-artifact or --term');
+  }
+
+  const maxNodes = integerArg(args, 'max-nodes', 12);
+  const maxBytes = integerArg(args, 'max-bytes', 12000);
+  const maxDepth = integerArg(args, 'max-depth', 3);
+  const includeHistorical = booleanArg(args, 'include-historical', false);
+  const includeProposed = booleanArg(args, 'include-proposed', false);
+  const followSupersession = booleanArg(args, 'follow-supersession', true);
+  const relationTypes = many(args, 'relation-type');
+
+  const memoryState = await rebuildMemoryState(memoryRoot);
+  const artifactCatalog = await rebuildArtifactCatalog(memoryRoot);
+  const graph = buildMemoryGraph(memoryState, artifactCatalog);
+  const projection = projectMemoryGraph(
+    graph,
+    {
+      project,
+      seed_ids: seedIds,
+      terms,
+    },
+    {
+      max_nodes: maxNodes,
+      max_bytes: maxBytes,
+    },
+    {
+      max_depth: maxDepth,
+      include_historical: includeHistorical,
+      include_proposed: includeProposed,
+      follow_supersession: followSupersession,
+      ...(relationTypes.length > 0 ? { relation_types: relationTypes } : {}),
+    },
+  );
+
+  process.stdout.write(JSON.stringify({
+    protocol: RUN_PROTOCOL,
+    command: 'project',
+    projection,
+  }, null, 2) + '\n');
+}
+
 async function listJsonFiles(directory) {
   let entries;
   try {
@@ -254,6 +303,15 @@ function integerArg(args, key, defaultValue) {
   return parsed;
 }
 
+function booleanArg(args, key, defaultValue) {
+  const value = args[key];
+  if (value === undefined) return defaultValue;
+  if (Array.isArray(value)) throw new Error('--' + key + ' may be supplied only once');
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error('--' + key + ' must be true or false');
+}
+
 function usage() {
   return [
     'usage:',
@@ -267,6 +325,13 @@ function usage() {
     '  node experiments/fresh-chat-bootstrap/snapshot.mjs bootstrap',
     '    --memory-root PATH --project PROJECT --task TEXT',
     '    [--root-artifact ID...] [--max-nodes N] [--max-bytes N] [--max-depth N]',
+    '',
+    '  node experiments/fresh-chat-bootstrap/snapshot.mjs project',
+    '    --memory-root PATH --project PROJECT',
+    '    [--seed-artifact ID...] [--term TEXT...]',
+    '    [--relation-type TYPE...] [--include-historical true|false]',
+    '    [--include-proposed true|false] [--follow-supersession true|false]',
+    '    [--max-nodes N] [--max-bytes N] [--max-depth N]',
   ].join('\n');
 }
 
