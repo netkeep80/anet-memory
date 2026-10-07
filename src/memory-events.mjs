@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -178,6 +179,7 @@ export async function rebuildMemoryState(root, { now = () => new Date().toISOStr
 
   const invalid = [];
   const groups = new Map();
+  const sourceSha256 = await hashJournalFiles(files, eventRoot);
 
   for (const file of files) {
     try {
@@ -205,6 +207,7 @@ export async function rebuildMemoryState(root, { now = () => new Date().toISOStr
     journal: {
       files: files.length,
       invalid_events: invalid.length,
+      source_sha256: sourceSha256,
       invalid,
     },
     artifacts,
@@ -316,6 +319,13 @@ export function evaluateArtifactHistory(artifactId, events) {
     replacement_artifact_id: replacementArtifactId,
     verifications,
     authority_errors: authorityErrors,
+    provenance: acceptedEvents
+      .filter((event) => event.provenance.length > 0)
+      .map((event) => ({
+        event_id: event.event_id,
+        action: event.action,
+        refs: event.provenance,
+      })),
     events: acceptedEvents.map((event) => event.event_id),
     last_event_id: previousEventId,
     next_sequence: expectedSequence,
@@ -422,6 +432,18 @@ async function listJsonFiles(root) {
     .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
     .map((entry) => path.join(root, entry.name))
     .sort();
+}
+
+async function hashJournalFiles(files, eventRoot) {
+  const hash = createHash('sha256');
+  for (const file of files) {
+    const relative = path.relative(eventRoot, file).split(path.sep).join('/');
+    hash.update(relative, 'utf8');
+    hash.update(Buffer.from([0]));
+    hash.update(await readFile(file));
+    hash.update(Buffer.from([0]));
+  }
+  return hash.digest('hex');
 }
 
 async function atomicWrite(destination, content) {
