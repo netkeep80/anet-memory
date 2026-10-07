@@ -1,0 +1,80 @@
+name: Source bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-chat-bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build deterministic fresh-chat source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUNDLE="anet-memory-source-bundle-fresh-chat-bootstrap-${GITHUB_SHA}.mjs"
+          CREATED_AT="$(git show -s --format=%cI HEAD)"
+
+          node experiments/source-bundle/source-bundle.mjs build \
+            --root . \
+            --out "${BUNDLE}" \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile fresh-chat-bootstrap \
+            --created-at "${CREATED_AT}" \
+            --entrypoint experiments/fresh-chat-bootstrap/snapshot.mjs \
+            --file package.json \
+            --file experiments/fresh-chat-bootstrap/snapshot.mjs \
+            --file src/memory-library.mjs \
+            --file src/memory-artifacts.mjs \
+            --file src/memory-events.mjs \
+            --file src/memory-views.mjs \
+            --file src/memory-bootstrap.mjs \
+            --file src/memory-projection.mjs \
+            | tee source-bundle-build.json
+
+          node "${BUNDLE}" verify \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile fresh-chat-bootstrap \
+            | tee source-bundle-verify.json
+
+          node "${BUNDLE}" unpack \
+            --out _source-bundle-checkout \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile fresh-chat-bootstrap
+
+          node -e "import('./_source-bundle-checkout/experiments/fresh-chat-bootstrap/snapshot.mjs')"
+
+          cmp package.json _source-bundle-checkout/package.json
+          cmp experiments/fresh-chat-bootstrap/snapshot.mjs \
+            _source-bundle-checkout/experiments/fresh-chat-bootstrap/snapshot.mjs
+          cmp src/memory-library.mjs _source-bundle-checkout/src/memory-library.mjs
+          cmp src/memory-artifacts.mjs _source-bundle-checkout/src/memory-artifacts.mjs
+          cmp src/memory-events.mjs _source-bundle-checkout/src/memory-events.mjs
+          cmp src/memory-views.mjs _source-bundle-checkout/src/memory-views.mjs
+          cmp src/memory-bootstrap.mjs _source-bundle-checkout/src/memory-bootstrap.mjs
+          cmp src/memory-projection.mjs _source-bundle-checkout/src/memory-projection.mjs
+
+      - name: Upload immutable source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: anet-memory-source-bundle-fresh-chat-bootstrap-${{ github.sha }}
+          path: |
+            anet-memory-source-bundle-fresh-chat-bootstrap-${{ github.sha }}.mjs
+            source-bundle-build.json
+            source-bundle-verify.json
+          if-no-files-found: error
+          retention-days: 90
