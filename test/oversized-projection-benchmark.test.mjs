@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -95,26 +95,17 @@ test('oversized corpus benchmark stays bounded and expands only along ANet relat
   assert.equal(exportedResult.parsed.objects.length, 79);
 
   const manifestPath = path.join(exported, 'manifests', runId + '.json');
+  const prepareResultPath = path.join(parent, 'prepare-result.json');
+  await writeFile(prepareResultPath, prepared.stdout, 'utf8');
+
   const measured = await runNode(measure, [
     '--bundle-root', exported,
     '--manifest', manifestPath,
-    '--prepare-result', path.join(parent, 'prepare-result.json'),
+    '--prepare-result', prepareResultPath,
     '--out', metaPath,
     '--projection-max-bytes', '8000',
     '--min-ratio', '10',
-  ]).catch(async (error) => {
-    // measure consumes a file so persist the already verified prepare stdout, then retry.
-    const { writeFile } = await import('node:fs/promises');
-    await writeFile(path.join(parent, 'prepare-result.json'), prepared.stdout, 'utf8');
-    return runNode(measure, [
-      '--bundle-root', exported,
-      '--manifest', manifestPath,
-      '--prepare-result', path.join(parent, 'prepare-result.json'),
-      '--out', metaPath,
-      '--projection-max-bytes', '8000',
-      '--min-ratio', '10',
-    ]);
-  });
+  ]);
 
   assert.ok(measured.parsed.corpus_bytes >= 80_000);
   assert.ok(measured.parsed.corpus_to_projection_budget_ratio >= 10);
