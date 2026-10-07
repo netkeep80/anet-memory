@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createEnvelope, serializeEnvelope } from '../src/sandbox-bus.mjs';
+import { appendMemoryEvent, createMemoryEvent } from '../src/memory-events.mjs';
 import {
   ingestEnvelope,
   rebuildState,
@@ -187,3 +188,79 @@ async function waitFor(predicate, { timeoutMs = 1500, intervalMs = 25 } = {}) {
   }
   assert.fail('condition was not reached before timeout');
 }
+
+
+test('daemon exposes lifecycle memory state/current view and background event discovery', async (t) => {
+  const root = await tempRoot();
+  const daemon = await startMemoryDaemon({
+    root,
+    host: '127.0.0.1',
+    port: 0,
+    scanIntervalMs: 25,
+  });
+  t.after(async () => {
+    await daemon.close();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const base = `http://127.0.0.1:${daemon.port}`;
+
+  const proposal = createMemoryEvent({
+    eventId: 'mem-event-1',
+    artifactId: 'artifact-a',
+    sequence: 1,
+    previousEventId: null,
+    action: 'propose',
+    authority: 'model',
+    actor: 'chat-a',
+    provenance: ['chat:proposal'],
+    createdAt: '2026-10-07T22:00:00.000Z',
+  });
+
+  const proposalResponse = await fetch(`${base}/memory/event`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(proposal),
+  });
+  assert.equal(proposalResponse.status, 201);
+
+  let current = await (await fetch(`${base}/memory/current`)).json();
+  assert.deepEqual(current.current.candidates.map((item) => item.artifact_id), ['artifact-a']);
+  assert.equal(current.current.accepted.length, 0);
+
+  const acceptance = createMemoryEvent({
+    eventId: 'mem-event-2',
+    artifactId: 'artifact-a',
+    sequence: 2,
+    previousEventId: 'mem-event-1',
+    action: 'accept',
+    authority: 'author',
+    actor: 'user',
+    provenance: ['chat:explicit-approval'],
+    createdAt: '2026-10-07T22:01:00.000Z',
+  });
+
+  await appendMemoryEvent(path.join(root, 'memory'), acceptance);
+
+  await waitFor(async () => {
+    const response = await fetch(`${base}/memory/current`);
+    const value = await response.json();
+    return value.current.accepted.some((item) => item.artifact_id === 'artifact-a');
+  });
+
+  const memoryState = await (await fetch(`${base}/memory/state`)).json();
+  current = await (await fetch(`${base}/memory/current`)).json();
+
+  assert.equal(memoryState.artifacts['artifact-a'].lifecycle, 'ACCEPTED');
+  assert.equal(current.current.accepted[0].artifact_id, 'artifact-a');
+  assert.equal(
+    current.source.journal_source_sha256,
+    memoryState.journal.source_sha256,
+  );
+
+  const health = await (await fetch(`${base}/health`)).json();
+  assert.equal(
+    health.memory_journal_source_sha256,
+    memoryState.journal.source_sha256,
+  );
+});
