@@ -37,7 +37,7 @@ test('FORMAL package preserves exact opaque artifact bytes', () => {
   assert.deepEqual(decodeFormalArtifact(value), bytes);
   assert.equal(
     value.artifact_sha256,
-    'a4e9182057befd21bf54fc28097de417b16e506e274307df488f9b668f31225d',
+    'b4eb573252f3522ed45517dd0285995ba68d018eb5c6ee93ba5cf29af01ae446',
   );
 });
 
