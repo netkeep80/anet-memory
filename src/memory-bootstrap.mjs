@@ -94,7 +94,7 @@ export function deriveTaskTerms(task, maxTerms = DEFAULT_MAX_TASK_TERMS) {
   }
 
   const normalized = task.normalize('NFKC').toLocaleLowerCase('en-US');
-  const tokens = normalized.match(/[\p{L}\p{N}][\p{L}\p{N}._:-]*/gu) ?? [];
+  const tokens = normalized.match(/[\p{L}\p{N}][\p{L}\p{N}._-]*/gu) ?? [];
   const unique = [];
   const seen = new Set();
 
