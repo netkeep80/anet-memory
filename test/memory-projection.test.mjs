@@ -329,6 +329,36 @@ test('terms-only query uses deterministic lexical seeds then structural traversa
   );
 });
 
+test('lexical diagnostics remain capped instead of scaling with the full corpus', () => {
+  const graph = graphFixture();
+  for (let index = 0; index < 500; index += 1) {
+    const id = 'bulk-' + String(index).padStart(4, '0');
+    graph.nodes[id] = node(id, {
+      kind: 'note',
+      subject: 'bounded projection implementation noise ' + index,
+      summary: 'lexical candidate that must not all be returned',
+    });
+  }
+
+  const result = projectMemoryGraph(
+    graph,
+    {
+      project: 'p',
+      seed_ids: [],
+      terms: ['bounded', 'projection'],
+    },
+    roomyBudget,
+    {
+      max_seed_candidates: 3,
+    },
+  );
+
+  assert.equal(result.seeds.lexical_candidates.length, 3);
+  assert.ok(result.seeds.lexical_candidate_count > result.seeds.lexical_candidates.length);
+  assert.ok(result.seeds.selected.length <= 3);
+});
+
+
 test('rejected and superseded nodes are excluded from default lexical seed generation', () => {
   const result = projectMemoryGraph(
     graphFixture(),
