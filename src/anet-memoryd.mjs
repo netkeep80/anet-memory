@@ -12,6 +12,8 @@ import {
   serializeEnvelope,
   validateEnvelope,
 } from './sandbox-bus.mjs';
+import { appendMemoryEvent, rebuildMemoryState } from './memory-events.mjs';
+import { buildMemoryViews } from './memory-views.mjs';
 
 const STATE_PROTOCOL = 'anet-memoryd/state-v1';
 const DEFAULT_HOST = '127.0.0.1';
@@ -24,6 +26,7 @@ export async function ensureMemoryLayout(root) {
   await Promise.all([
     mkdir(path.join(absoluteRoot, 'inbox'), { recursive: true }),
     mkdir(path.join(absoluteRoot, 'views'), { recursive: true }),
+    mkdir(path.join(absoluteRoot, 'memory'), { recursive: true }),
   ]);
   return absoluteRoot;
 }
@@ -153,6 +156,8 @@ export async function startMemoryDaemon({
     last_scan_at: null,
     last_scan_error: null,
     state: null,
+    memory_state: null,
+    memory_view: null,
   };
 
   let activeScan = null;
@@ -161,11 +166,25 @@ export async function startMemoryDaemon({
     activeScan = (async () => {
       try {
         const state = await rebuildState(absoluteRoot);
+        const memoryRoot = path.join(absoluteRoot, 'memory');
+        const memoryState = await rebuildMemoryState(memoryRoot);
+        const memoryView = buildMemoryViews(memoryState);
+        await atomicWrite(
+          path.join(memoryRoot, 'views', 'memory-current.json'),
+          `${JSON.stringify(memoryView, null, 2)}\n`,
+        );
+
         runtime.scan_count += 1;
         runtime.last_scan_at = state.generated_at;
         runtime.last_scan_error = null;
         runtime.state = state;
-        return state;
+        runtime.memory_state = memoryState;
+        runtime.memory_view = memoryView;
+        return {
+          transport: state,
+          memory_state: memoryState,
+          memory_view: memoryView,
+        };
       } catch (error) {
         runtime.last_scan_error = {
           code: error?.code ?? 'SCAN_ERROR',
@@ -195,11 +214,23 @@ export async function startMemoryDaemon({
           scan_count: runtime.scan_count,
           last_scan_at: runtime.last_scan_at,
           last_scan_error: runtime.last_scan_error,
+          memory_journal_source_sha256: runtime.memory_state?.journal?.source_sha256 ?? null,
         });
       }
 
       if (request.method === 'GET' && url.pathname === '/state') {
-        return sendJson(response, 200, runtime.state ?? await scanOnce());
+        if (!runtime.state) await scanOnce();
+        return sendJson(response, 200, runtime.state);
+      }
+
+      if (request.method === 'GET' && url.pathname === '/memory/state') {
+        if (!runtime.memory_state) await scanOnce();
+        return sendJson(response, 200, runtime.memory_state);
+      }
+
+      if (request.method === 'GET' && url.pathname === '/memory/current') {
+        if (!runtime.memory_view) await scanOnce();
+        return sendJson(response, 200, runtime.memory_view);
       }
 
       if (request.method === 'POST' && url.pathname === '/scan') {
@@ -209,10 +240,21 @@ export async function startMemoryDaemon({
       if (request.method === 'POST' && url.pathname === '/ingest') {
         const envelope = await readJsonBody(request, maxBodyBytes);
         const result = await ingestEnvelope(absoluteRoot, envelope);
-        const state = await scanOnce();
+        await scanOnce();
         return sendJson(response, result.status === 'ingested' ? 201 : 200, {
           ...result,
-          state,
+          state: runtime.state,
+        });
+      }
+
+      if (request.method === 'POST' && url.pathname === '/memory/event') {
+        const event = await readJsonBody(request, maxBodyBytes);
+        const result = await appendMemoryEvent(path.join(absoluteRoot, 'memory'), event);
+        await scanOnce();
+        return sendJson(response, result.status === 'appended' ? 201 : 200, {
+          ...result,
+          memory_state: runtime.memory_state,
+          current_view: runtime.memory_view,
         });
       }
 
@@ -247,6 +289,8 @@ export async function startMemoryDaemon({
     port: typeof address === 'object' && address ? address.port : port,
     scanOnce,
     getState: () => runtime.state,
+    getMemoryState: () => runtime.memory_state,
+    getMemoryView: () => runtime.memory_view,
     getRuntime: () => ({ ...runtime }),
     close: async () => {
       clearInterval(timer);
