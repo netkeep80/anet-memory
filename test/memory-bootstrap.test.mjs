@@ -133,7 +133,7 @@ function graphFixture() {
 test('task terms are Unicode-aware, deterministic and explicitly bounded', () => {
   assert.deepEqual(
     deriveTaskTerms('Продолжить MTS v0.15 acceptance: продолжить проект', 8),
-    ['продолжить', 'mts', 'v0.15', 'acceptance:', 'проект'],
+    ['продолжить', 'mts', 'v0.15', 'acceptance', 'проект'],
   );
 
   assert.throws(
