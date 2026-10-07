@@ -51,3 +51,5 @@ This repository does not define a new MTS ontology. FORMAL/MTS semantics remain 
 ## Governance
 
 The repository uses [repo-guard](https://github.com/netkeep80/repo-guard) in **advisory** mode initially. It will move to blocking only after positive and negative witnesses show that the policy protects a real project boundary without obstructing normal development.
+
+<!-- repo-guard positive witness: documentation-only change -->
