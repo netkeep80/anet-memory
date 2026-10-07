@@ -198,9 +198,7 @@ test('current bootstrap resists rejected and superseded history pollution', () =
       max_nodes: 10,
       max_bytes: 100_000,
     },
-    {
-      max_seed_candidates: 2,
-    },
+    {},
   );
 
   const ids = [
@@ -216,6 +214,7 @@ test('current bootstrap resists rejected and superseded history pollution', () =
   assert.ok(!ids.includes('decision-old'));
   assert.ok(!ids.includes('hypothesis-rejected'));
   assert.ok(ids.includes('task-bootstrap'));
+  assert.ok(ids.every((id) => !id.startsWith('noise-')));
 });
 
 test('explicit task seed suppresses unrelated lexical augmentation by default', () => {
