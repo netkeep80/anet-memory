@@ -146,3 +146,41 @@ test('producer recovery fails closed on fork/gap', () => {
     (error) => error instanceof SandboxBusError && error.code === 'GAP_PENDING',
   );
 });
+
+
+test('message_id is path-safe before filename construction', () => {
+  for (const unsafe of ['../x', 'a/b', 'a\\\\b', '', 'x'.repeat(201)]) {
+    assert.throws(
+      () => createEnvelope({
+        source: 'thread-a',
+        target: 'thread-b',
+        sequence: 1,
+        messageId: unsafe,
+        payloadBytes: 'x',
+      }),
+      (error) => error instanceof SandboxBusError && error.code === 'INVALID_MESSAGE_ID',
+      unsafe,
+    );
+  }
+
+  const safe = createEnvelope({
+    source: 'thread-a',
+    target: 'thread-b',
+    sequence: 1,
+    messageId: 'thread-a:01K.test_123-abc',
+    payloadBytes: 'x',
+  });
+  assert.equal(
+    messageFilename(safe),
+    '000000000001--thread-a:01K.test_123-abc.json',
+  );
+});
+
+test('externally supplied unsafe message_id is rejected by validation', () => {
+  const envelope = message(1, null, 'safe-id');
+  const unsafe = { ...envelope, message_id: '../escape' };
+  assert.throws(
+    () => validateEnvelope(unsafe),
+    (error) => error instanceof SandboxBusError && error.code === 'INVALID_MESSAGE_ID',
+  );
+});
