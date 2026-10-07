@@ -266,6 +266,37 @@ test('daemon exposes lifecycle memory state/current view and background event di
 });
 
 
+test('close waits for an in-flight background scan before returning', async (t) => {
+  const root = await tempRoot();
+  const daemon = await startMemoryDaemon({
+    root,
+    host: '127.0.0.1',
+    port: 0,
+    scanIntervalMs: 60_000,
+  });
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const bulkDir = path.join(root, 'inbox', 'bulk');
+  await mkdir(bulkDir, { recursive: true });
+  await Promise.all(Array.from({ length: 512 }, (_, index) =>
+    writeFile(path.join(bulkDir, `broken-${String(index).padStart(4, '0')}.json`), '{not-json', 'utf8')
+  ));
+
+  const before = daemon.getRuntime().scan_count;
+  const scanPromise = daemon.scanOnce();
+  let scanFinished = false;
+  scanPromise.then(() => {
+    scanFinished = true;
+  });
+
+  await daemon.close();
+
+  assert.equal(scanFinished, true);
+  assert.equal(daemon.getRuntime().scan_count, before + 1);
+  await rm(root, { recursive: true, force: true });
+});
+
+
 test('memory event immutable conflict is surfaced as HTTP 409', async (t) => {
   const root = await tempRoot();
   const daemon = await startMemoryDaemon({
