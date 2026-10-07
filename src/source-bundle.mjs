@@ -403,6 +403,12 @@ async function main(argv) {
       entrypoints: BUNDLE.entrypoints,
       file_count: BUNDLE.files.length,
       total_source_bytes: [...decoded.values()].reduce((sum, bytes) => sum + bytes.length, 0),
+      files: BUNDLE.files.map((file) => ({
+        path: file.path,
+        size_bytes: file.size_bytes,
+        sha256: file.sha256,
+        git_blob_sha1: file.git_blob_sha1,
+      })),
       self_sha256: await selfSha256(),
     }, null, 2) + '\\n');
     return;
