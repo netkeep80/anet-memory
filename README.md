@@ -52,4 +52,21 @@ This repository does not define a new MTS ontology. FORMAL/MTS semantics remain 
 
 The repository uses [repo-guard](https://github.com/netkeep80/repo-guard) in **advisory** mode initially. It will move to blocking only after positive and negative witnesses show that the policy protects a real project boundary without obstructing normal development.
 
-<!-- repo-guard positive witness: documentation-only change -->
+
+## sandbox-bus/1 reference implementation
+
+The first executable slice lives in `src/sandbox-bus.mjs`. It intentionally has no runtime dependencies.
+
+Transport payloads are exact bytes encoded as Base64 inside the JSON envelope. `payload_sha256` is calculated over the decoded payload bytes, so FORMAL/JSON or any other artifact can later be transferred byte-for-byte without making JSON canonicalization part of the transport contract.
+
+Examples:
+
+```bash
+node src/sandbox-bus-cli.mjs create thread-a thread-b 1 null payload.json message.json application/json
+node src/sandbox-bus-cli.mjs validate message.json
+node src/sandbox-bus-cli.mjs ack thread-b thread-a 1 null <message-id> processed ack.json
+node src/sandbox-bus-cli.mjs inspect thread-a thread-b message.json
+npm test
+```
+
+The filename/path is only a sortable physical index. `message_id`, `sequence`, and `previous_message_id` inside the envelope are authoritative.
