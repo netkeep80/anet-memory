@@ -154,6 +154,7 @@ export function projectMemoryGraph(graph, query, budget, policy = {}) {
       lexical_terms: normalizedQuery.terms,
       selected: seedResolution.selected,
       lexical_candidates: seedResolution.lexicalCandidates,
+      lexical_candidate_count: seedResolution.lexicalCandidateCount,
     },
     nodes: selected,
     frontier: [...frontier].sort(),
@@ -216,11 +217,12 @@ function resolveSeeds(graph, query, policy) {
   const shouldUseLexical = query.terms.length > 0 &&
     (query.seed_ids.length === 0 || policy.augment_explicit_seeds);
 
-  const lexicalCandidates = shouldUseLexical
+  const allLexicalCandidates = shouldUseLexical
     ? lexicalSeedCandidates(graph, query, policy)
     : [];
+  const lexicalCandidates = allLexicalCandidates.slice(0, policy.max_seed_candidates);
 
-  for (const candidate of lexicalCandidates.slice(0, policy.max_seed_candidates)) {
+  for (const candidate of lexicalCandidates) {
     if (!selectedSet.has(candidate.artifact_id)) {
       selected.push(candidate.artifact_id);
       selectedSet.add(candidate.artifact_id);
@@ -230,6 +232,7 @@ function resolveSeeds(graph, query, policy) {
   return {
     selected,
     lexicalCandidates,
+    lexicalCandidateCount: allLexicalCandidates.length,
     filtered,
     unresolved,
     redirects,
