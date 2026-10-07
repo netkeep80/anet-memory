@@ -1,10 +1,12 @@
 # Publisher runbook — fresh-chat bootstrap
 
-Run owner: #40
+Run owner: #40  
+Source transport owner: #36
 
 ## Preconditions
 
-- Work from the exact pinned commit recorded for the run.
+- Work from the exact pinned repository commit recorded for the run.
+- Build the source bundle from that exact checkout.
 - Use a **dedicated** local memory root for this experiment.
 - Do not copy a raw chat transcript into semantic artifacts.
 - Encode only:
@@ -12,11 +14,51 @@ Run owner: #40
   - externally observed GitHub/test evidence as observed/verified lifecycle;
   - model-generated interpretations as proposals unless the user explicitly accepted them.
 
-## 1. Build the dedicated semantic memory root
+## 1. Build the immutable executable source bundle
+
+The consumer must be able to execute the literal pinned repository implementation without guest GitHub network access.
+
+Build one self-contained source bundle:
+
+```bash
+node experiments/source-bundle/source-bundle.mjs build \
+  --root . \
+  --out /tmp/anet-fresh-source-bundle.mjs \
+  --repository netkeep80/anet-memory \
+  --commit <PINNED_SHA> \
+  --profile fresh-chat-bootstrap \
+  --entrypoint experiments/fresh-chat-bootstrap/snapshot.mjs \
+  --file package.json \
+  --file experiments/fresh-chat-bootstrap/snapshot.mjs \
+  --file src/memory-library.mjs \
+  --file src/memory-artifacts.mjs \
+  --file src/memory-events.mjs \
+  --file src/memory-views.mjs \
+  --file src/memory-bootstrap.mjs \
+  --file src/memory-projection.mjs
+```
+
+The command prints:
+- outer bundle SHA-256;
+- repository / exact commit / profile;
+- entrypoints;
+- every bundled path, byte size, SHA-256 and Git blob SHA-1.
+
+Upload the generated bundle immutably through the ChatGPT Library/file plane, for example:
+
+```text
+/anet-memory/v1/source-bundles/<PINNED_SHA>/fresh-chat-bootstrap.mjs
+```
+
+Record the exact Library path and outer SHA-256 in #40.
+
+The source bundle must be visible before the consumer run starts.
+
+## 2. Build the dedicated semantic memory root
 
 Use the existing `anet-memoryd` artifact/event API or the repository modules.
 
-The run `fresh-bootstrap-20261007-01` should contain a small real-task graph rooted at the experiment task.
+The run should contain a small real-task graph rooted at the experiment task.
 
 At minimum the working set should allow the consumer to reconstruct:
 
@@ -26,7 +68,7 @@ At minimum the working set should allow the consumer to reconstruct:
 - #26 endurance run must not be touched;
 - the current next action is the real fresh-chat acceptance check.
 
-## 2. Export exact Library objects
+## 3. Export exact ANet Library objects
 
 Example:
 
@@ -34,7 +76,7 @@ Example:
 node experiments/fresh-chat-bootstrap/snapshot.mjs export \
   --memory-root /tmp/anet-fresh-publisher/memory \
   --out /tmp/anet-fresh-bundle \
-  --manifest-id fresh-bootstrap-20261007-01 \
+  --manifest-id <RUN_ID> \
   --project anet-memory \
   --root-artifact <ROOT_TASK_ID> \
   --provenance github:issue/40 \
@@ -49,31 +91,31 @@ It prints:
 - SHA-256;
 - manifest path to publish last.
 
-## 3. Publish through the ChatGPT Library tool plane
+## 4. Publish through the ChatGPT Library tool plane
 
 Upload each artifact/event exactly as bytes to the printed path.
 
 Do not assume the daemon itself can access Library.
 
-After all object uploads are visible, upload:
+After all source-bundle and semantic object uploads are visible, upload the run-specific manifest **LAST**.
 
-```text
-/anet-memory/v1/manifests/fresh-bootstrap-20261007-01.json
-```
+Manifest visibility is the semantic snapshot-ready signal. It is not proof of strong Library consistency.
 
-**last**.
+Never overwrite an earlier failed run. Allocate a new manifest/run ID for a rerun.
 
-Manifest visibility is the run's snapshot-ready signal. It is not proof of strong Library consistency.
-
-## 4. Record publisher evidence in #40
+## 5. Record publisher evidence in #40
 
 Record:
+- run ID;
 - pinned commit;
+- source bundle Library path;
+- source bundle outer SHA-256;
+- source bundle profile / file count;
 - root artifact ID;
-- manifest Library path;
-- manifest SHA-256;
+- semantic manifest Library path;
+- semantic manifest SHA-256;
 - object count;
 - object path + SHA list (or attach the export plan);
 - publication result.
 
-Then hand the consumer only the repository + run/manifest locator. Do not provide a semantic handoff.
+Then hand the consumer only the repository + run/manifest/source-bundle locators. Do not provide a semantic handoff.
