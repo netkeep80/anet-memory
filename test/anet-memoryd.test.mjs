@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { createEnvelope, serializeEnvelope } from '../src/sandbox-bus.mjs';
 import { appendMemoryEvent, createMemoryEvent } from '../src/memory-events.mjs';
+import { createMemoryArtifact } from '../src/memory-artifacts.mjs';
 import {
   ingestEnvelope,
   rebuildState,
@@ -336,4 +337,239 @@ test('memory event immutable conflict is surfaced as HTTP 409', async (t) => {
   assert.equal(response.status, 409);
   const body = await response.json();
   assert.equal(body.error, 'EVENT_ID_CONFLICT');
+});
+
+
+test('daemon joins semantic artifacts with lifecycle state and exposes pure bounded projection', async (t) => {
+  const root = await tempRoot();
+  let daemon = await startMemoryDaemon({
+    root,
+    host: '127.0.0.1',
+    port: 0,
+    scanIntervalMs: 60_000,
+  });
+  t.after(async () => {
+    if (daemon) await daemon.close();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  let base = `http://127.0.0.1:${daemon.port}`;
+
+  const artifacts = [
+    createMemoryArtifact({
+      artifactId: 'task-project',
+      kind: 'task',
+      project: 'anet-memory',
+      subject: 'bounded projection',
+      summary: 'project current task through structural dependencies',
+      status: 'OPEN',
+      context: 'phase-4',
+      relations: [{ type: 'depends_on', target: 'decision-project' }],
+      provenance: ['github:issue/5'],
+    }),
+    createMemoryArtifact({
+      artifactId: 'decision-project',
+      kind: 'decision',
+      project: 'anet-memory',
+      subject: 'projection policy',
+      summary: 'use relation-native traversal',
+      status: 'ACTIVE',
+      context: 'phase-4',
+      relations: [{ type: 'evidence', target: 'evidence-project' }],
+      provenance: ['github:pr/32'],
+    }),
+    createMemoryArtifact({
+      artifactId: 'evidence-project',
+      kind: 'evidence',
+      project: 'anet-memory',
+      subject: 'projection evidence',
+      summary: 'CI validates deterministic structural traversal',
+      status: 'ACTIVE',
+      context: 'phase-4',
+      relations: [],
+      provenance: ['github:commit/ce5cfed'],
+    }),
+  ];
+
+  for (const artifact of artifacts) {
+    const response = await fetch(`${base}/memory/artifact`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(artifact),
+    });
+    assert.equal(response.status, 201);
+  }
+
+  const events = [
+    createMemoryEvent({
+      eventId: 'task-project-1',
+      artifactId: 'task-project',
+      sequence: 1,
+      action: 'accept',
+      authority: 'author',
+      actor: 'user',
+      provenance: ['chat:task-accepted'],
+      createdAt: '2026-10-07T23:00:00.000Z',
+    }),
+    createMemoryEvent({
+      eventId: 'decision-project-1',
+      artifactId: 'decision-project',
+      sequence: 1,
+      action: 'accept',
+      authority: 'author',
+      actor: 'user',
+      provenance: ['chat:decision-accepted'],
+      createdAt: '2026-10-07T23:00:01.000Z',
+    }),
+    createMemoryEvent({
+      eventId: 'evidence-project-1',
+      artifactId: 'evidence-project',
+      sequence: 1,
+      action: 'observe',
+      authority: 'external',
+      actor: 'github-actions',
+      provenance: ['github:ci/success'],
+      createdAt: '2026-10-07T23:00:02.000Z',
+    }),
+  ];
+
+  for (const event of events) {
+    const response = await fetch(`${base}/memory/event`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(event),
+    });
+    assert.equal(response.status, 201);
+  }
+
+  const graphBefore = await (await fetch(`${base}/memory/graph`)).json();
+  assert.equal(graphBefore.nodes['task-project'].status, 'OPEN');
+  assert.deepEqual(graphBefore.nodes['task-project'].relations, [
+    { type: 'depends_on', target: 'decision-project' },
+  ]);
+  assert.equal(graphBefore.nodes['evidence-project'].lifecycle.lifecycle, 'OBSERVED');
+
+  const projectionResponse = await fetch(`${base}/memory/project`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      query: {
+        project: 'anet-memory',
+        seed_ids: ['task-project'],
+        terms: [],
+      },
+      budget: {
+        max_nodes: 3,
+        max_bytes: 100_000,
+      },
+    }),
+  });
+  assert.equal(projectionResponse.status, 200);
+  const projection = await projectionResponse.json();
+  assert.deepEqual(
+    projection.nodes.map((item) => item.artifact_id),
+    ['task-project', 'decision-project', 'evidence-project'],
+  );
+
+  const graphAfter = await (await fetch(`${base}/memory/graph`)).json();
+  assert.deepEqual(graphAfter, graphBefore);
+
+  const health = await (await fetch(`${base}/health`)).json();
+  assert.equal(
+    health.memory_journal_source_sha256,
+    graphBefore.source.memory_event_source_sha256,
+  );
+  assert.equal(
+    health.semantic_artifact_source_sha256,
+    graphBefore.source.semantic_artifact_source_sha256,
+  );
+
+  const conflictingArtifact = { ...artifacts[0], summary: 'conflicting content' };
+  const conflictResponse = await fetch(`${base}/memory/artifact`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(conflictingArtifact),
+  });
+  assert.equal(conflictResponse.status, 409);
+  assert.equal((await conflictResponse.json()).error, 'ARTIFACT_ID_CONFLICT');
+
+  const normalizedBeforeRestart = {
+    source: graphBefore.source,
+    classifications: graphBefore.classifications,
+    nodes: graphBefore.nodes,
+    missing_semantic_records: graphBefore.missing_semantic_records,
+    semantic_without_lifecycle: graphBefore.semantic_without_lifecycle,
+    dangling_relations: graphBefore.dangling_relations,
+  };
+
+  await daemon.close();
+  daemon = null;
+
+  daemon = await startMemoryDaemon({
+    root,
+    host: '127.0.0.1',
+    port: 0,
+    scanIntervalMs: 60_000,
+  });
+  base = `http://127.0.0.1:${daemon.port}`;
+
+  const rebuilt = await (await fetch(`${base}/memory/graph`)).json();
+  assert.deepEqual({
+    source: rebuilt.source,
+    classifications: rebuilt.classifications,
+    nodes: rebuilt.nodes,
+    missing_semantic_records: rebuilt.missing_semantic_records,
+    semantic_without_lifecycle: rebuilt.semantic_without_lifecycle,
+    dangling_relations: rebuilt.dangling_relations,
+  }, normalizedBeforeRestart);
+});
+
+
+test('mutation endpoints force a post-write scan even when an older scan is already active', async (t) => {
+  const root = await tempRoot();
+  const daemon = await startMemoryDaemon({
+    root,
+    host: '127.0.0.1',
+    port: 0,
+    scanIntervalMs: 60_000,
+  });
+  t.after(async () => {
+    await daemon.close();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const base = `http://127.0.0.1:${daemon.port}`;
+  const bulkDir = path.join(root, 'inbox', 'bulk-read-your-write');
+  await mkdir(bulkDir, { recursive: true });
+  await Promise.all(Array.from({ length: 256 }, (_, index) =>
+    writeFile(path.join(bulkDir, `broken-${String(index).padStart(4, '0')}.json`), '{not-json', 'utf8')
+  ));
+
+  const priorScan = daemon.scanOnce();
+
+  const artifact = createMemoryArtifact({
+    artifactId: 'read-your-write',
+    kind: 'decision',
+    project: 'anet-memory',
+    subject: 'read your write',
+    summary: 'mutation response must include a scan that starts after the durable write',
+    status: 'ACTIVE',
+    context: 'test',
+    relations: [],
+    provenance: ['test:read-your-write'],
+  });
+
+  const response = await fetch(`${base}/memory/artifact`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(artifact),
+  });
+  assert.equal(response.status, 201);
+  await priorScan;
+
+  const body = await response.json();
+  assert.equal(body.memory_graph.nodes['read-your-write'].subject, 'read your write');
+
+  const graph = await (await fetch(`${base}/memory/graph`)).json();
+  assert.equal(graph.nodes['read-your-write'].summary, artifact.summary);
 });
