@@ -299,6 +299,9 @@ export async function startMemoryDaemon({
       await new Promise((resolve, reject) => {
         server.close((error) => error ? reject(error) : resolve());
       });
+      if (activeScan) {
+        await activeScan;
+      }
     },
   };
 }
