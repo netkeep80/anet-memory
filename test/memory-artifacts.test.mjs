@@ -139,17 +139,17 @@ test('catalog fails closed when multiple files claim one artifact_id with confli
 
   const dir = path.join(root, 'artifacts');
   await writeFile(
-    path.join(dir, 'alias-duplicate.json'),
+    path.join(dir, 'z-a-duplicate.json'),
     JSON.stringify(original, null, 2) + '\n',
     'utf8',
   );
   await writeFile(
-    path.join(dir, 'alias-conflict.json'),
+    path.join(dir, 'z-b-conflict.json'),
     JSON.stringify({ ...original, summary: 'conflicting semantic content' }, null, 2) + '\n',
     'utf8',
   );
   await writeFile(
-    path.join(dir, 'alias-after-conflict.json'),
+    path.join(dir, 'z-c-after-conflict.json'),
     JSON.stringify(original, null, 2) + '\n',
     'utf8',
   );
