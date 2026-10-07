@@ -87,6 +87,11 @@ test('self-extracting source bundle verifies, unpacks exact bytes, and runs lite
   assert.equal(verifyResult.commit_sha, COMMIT);
   assert.equal(verifyResult.file_count, 2);
   assert.equal(verifyResult.self_sha256, expectedOuterSha);
+  assert.deepEqual(
+    verifyResult.files.map((file) => file.path),
+    ['bin/main.mjs', 'lib/value.mjs'],
+  );
+  assert.ok(verifyResult.files.every((file) => /^[a-f0-9]{40}$/.test(file.git_blob_sha1)));
 
   const unpacked = path.join(root, 'checkout');
   const unpack = await runNode(bundlePath, [
