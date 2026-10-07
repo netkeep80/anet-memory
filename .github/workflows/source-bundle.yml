@@ -154,3 +154,74 @@ jobs:
             history-rationale-source-bundle-verify.json
           if-no-files-found: error
           retention-days: 90
+
+
+  oversized-projection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build deterministic oversized-projection consumer source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUNDLE="anet-memory-source-bundle-oversized-projection-${GITHUB_SHA}.mjs"
+          CREATED_AT="$(git show -s --format=%cI HEAD)"
+
+          node experiments/source-bundle/source-bundle.mjs build \
+            --root . \
+            --out "${BUNDLE}" \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile oversized-projection \
+            --created-at "${CREATED_AT}" \
+            --entrypoint experiments/fresh-chat-bootstrap/snapshot.mjs \
+            --file package.json \
+            --file experiments/fresh-chat-bootstrap/snapshot.mjs \
+            --file src/memory-library.mjs \
+            --file src/memory-artifacts.mjs \
+            --file src/memory-events.mjs \
+            --file src/memory-views.mjs \
+            --file src/memory-bootstrap.mjs \
+            --file src/memory-projection.mjs \
+            | tee oversized-projection-source-bundle-build.json
+
+          node "${BUNDLE}" verify \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile oversized-projection \
+            | tee oversized-projection-source-bundle-verify.json
+
+          node "${BUNDLE}" unpack \
+            --out _oversized-projection-source-checkout \
+            --repository netkeep80/anet-memory \
+            --commit "${GITHUB_SHA}" \
+            --profile oversized-projection
+
+          node -e "import('./_oversized-projection-source-checkout/experiments/fresh-chat-bootstrap/snapshot.mjs')"
+
+          cmp package.json _oversized-projection-source-checkout/package.json
+          cmp experiments/fresh-chat-bootstrap/snapshot.mjs \
+            _oversized-projection-source-checkout/experiments/fresh-chat-bootstrap/snapshot.mjs
+          cmp src/memory-library.mjs _oversized-projection-source-checkout/src/memory-library.mjs
+          cmp src/memory-artifacts.mjs _oversized-projection-source-checkout/src/memory-artifacts.mjs
+          cmp src/memory-events.mjs _oversized-projection-source-checkout/src/memory-events.mjs
+          cmp src/memory-views.mjs _oversized-projection-source-checkout/src/memory-views.mjs
+          cmp src/memory-bootstrap.mjs _oversized-projection-source-checkout/src/memory-bootstrap.mjs
+          cmp src/memory-projection.mjs _oversized-projection-source-checkout/src/memory-projection.mjs
+
+      - name: Upload immutable oversized-projection consumer source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: anet-memory-source-bundle-oversized-projection-${{ github.sha }}
+          path: |
+            anet-memory-source-bundle-oversized-projection-${{ github.sha }}.mjs
+            oversized-projection-source-bundle-build.json
+            oversized-projection-source-bundle-verify.json
+          if-no-files-found: error
+          retention-days: 90
