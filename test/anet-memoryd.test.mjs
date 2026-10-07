@@ -471,6 +471,36 @@ test('daemon joins semantic artifacts with lifecycle state and exposes pure boun
     ['task-project', 'decision-project', 'evidence-project'],
   );
 
+  const bootstrapResponse = await fetch(`${base}/memory/bootstrap`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      request: {
+        project: 'anet-memory',
+        task: 'bounded projection continuation',
+        seed_ids: ['task-project'],
+      },
+      budget: {
+        max_nodes: 3,
+        max_bytes: 100_000,
+      },
+    }),
+  });
+  assert.equal(bootstrapResponse.status, 200);
+  const bootstrap = await bootstrapResponse.json();
+  assert.deepEqual(
+    bootstrap.working_set.tasks.open.map((item) => item.artifact_id),
+    ['task-project'],
+  );
+  assert.deepEqual(
+    bootstrap.working_set.decisions.map((item) => item.artifact_id),
+    ['decision-project'],
+  );
+  assert.deepEqual(
+    bootstrap.working_set.evidence.map((item) => item.artifact_id),
+    ['evidence-project'],
+  );
+
   const graphAfter = await (await fetch(`${base}/memory/graph`)).json();
   assert.deepEqual(graphAfter, graphBefore);
 
