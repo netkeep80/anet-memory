@@ -4,6 +4,7 @@ export const SANDBOX_BUS_PROTOCOL = 'sandbox-bus/1';
 export const ACK_STATUSES = new Set(['received', 'processed', 'rejected']);
 
 const NODE_ID_RE = /^[A-Za-z0-9._-]+$/;
+const MESSAGE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 export class SandboxBusError extends Error {
@@ -34,7 +35,7 @@ export function createEnvelope({
   assertNodeId(source, 'source');
   assertNodeId(target, 'target');
   assertSequence(sequence);
-  assertNonEmptyString(messageId, 'messageId');
+  assertMessageId(messageId, 'messageId');
   assertNonEmptyString(type, 'type');
   assertNonEmptyString(contentType, 'contentType');
 
@@ -133,7 +134,7 @@ export function validateEnvelope(envelope) {
   }
 
   assertNonEmptyString(envelope.type, 'type');
-  assertNonEmptyString(envelope.message_id, 'message_id');
+  assertMessageId(envelope.message_id, 'message_id');
   assertNodeId(envelope.source, 'source');
   assertNodeId(envelope.target, 'target');
   assertSequence(envelope.sequence);
@@ -346,6 +347,12 @@ function channelError(state, details) {
 function assertNodeId(value, field) {
   if (!isNonEmptyString(value) || !NODE_ID_RE.test(value)) {
     throw new SandboxBusError('INVALID_NODE_ID', `${field} must match ${NODE_ID_RE}`);
+  }
+}
+
+function assertMessageId(value, field) {
+  if (!isNonEmptyString(value) || !MESSAGE_ID_RE.test(value)) {
+    throw new SandboxBusError('INVALID_MESSAGE_ID', `${field} must match ${MESSAGE_ID_RE}`);
   }
 }
 
