@@ -20,6 +20,7 @@ import {
   rebuildArtifactCatalog,
 } from './memory-artifacts.mjs';
 import { MemoryProjectionError, projectMemoryGraph } from './memory-projection.mjs';
+import { MemoryBootstrapError, bootstrapMemoryGraph } from './memory-bootstrap.mjs';
 import { buildMemoryViews } from './memory-views.mjs';
 
 const STATE_PROTOCOL = 'anet-memoryd/state-v1';
@@ -272,6 +273,18 @@ export async function startMemoryDaemon({
         return sendJson(response, 200, projection);
       }
 
+      if (request.method === 'POST' && url.pathname === '/memory/bootstrap') {
+        const body = await readJsonBody(request, maxBodyBytes);
+        if (!runtime.memory_graph) await scanOnce();
+        const bootstrap = bootstrapMemoryGraph(
+          runtime.memory_graph,
+          body.request,
+          body.budget,
+          body.policy ?? {},
+        );
+        return sendJson(response, 200, bootstrap);
+      }
+
       if (request.method === 'POST' && url.pathname === '/scan') {
         return sendJson(response, 200, await scanOnce());
       }
@@ -317,13 +330,14 @@ export async function startMemoryDaemon({
       const artifactConflict = error instanceof MemoryArtifactError &&
         error.code === 'ARTIFACT_ID_CONFLICT';
       const projectionError = error instanceof MemoryProjectionError;
+      const bootstrapError = error instanceof MemoryBootstrapError;
       return sendJson(
         response,
         transportConflict || memoryConflict || artifactConflict ? 409 : 400,
         {
           error: error?.code ?? 'REQUEST_ERROR',
           message: error?.message ?? String(error),
-          ...(projectionError ? { details: error.details ?? {} } : {}),
+          ...(projectionError || bootstrapError ? { details: error.details ?? {} } : {}),
         },
       );
     }
