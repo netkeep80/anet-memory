@@ -12,7 +12,7 @@ import {
   serializeEnvelope,
   validateEnvelope,
 } from './sandbox-bus.mjs';
-import { appendMemoryEvent, rebuildMemoryState } from './memory-events.mjs';
+import { MemoryEventError, appendMemoryEvent, rebuildMemoryState } from './memory-events.mjs';
 import { buildMemoryViews } from './memory-views.mjs';
 
 const STATE_PROTOCOL = 'anet-memoryd/state-v1';
@@ -260,9 +260,11 @@ export async function startMemoryDaemon({
 
       return sendJson(response, 404, { error: 'NOT_FOUND' });
     } catch (error) {
-      const conflict = error instanceof SandboxBusError &&
+      const transportConflict = error instanceof SandboxBusError &&
         ['MESSAGE_PATH_CONFLICT', 'MESSAGE_ID_CONFLICT', 'CHANNEL_FORK'].includes(error.code);
-      return sendJson(response, conflict ? 409 : 400, {
+      const memoryConflict = error instanceof MemoryEventError &&
+        ['EVENT_ID_CONFLICT', 'ARTIFACT_EVENT_FORK'].includes(error.code);
+      return sendJson(response, transportConflict || memoryConflict ? 409 : 400, {
         error: error?.code ?? 'REQUEST_ERROR',
         message: error?.message ?? String(error),
       });
