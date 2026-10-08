@@ -1,0 +1,9 @@
+{
+  "protocol": "anet-commit-boundary-aba-probe/1",
+  "run_id": "github-cas-aba-20261008-01",
+  "epoch": "E0",
+  "generation": 0,
+  "winner": null,
+  "record": "A",
+  "notes": "Exact old bytes intentionally restored only in isolated research branch."
+}
