@@ -1,7 +1,7 @@
 {
   "schema": "anet-ref-authority-race/research-1",
   "logical_lease": "lease-1",
-  "candidate": "A",
+  "candidate": "B",
   "expected_base": "4ce6ce451ac0ee758941dc0a192c7aecbaf55b81",
   "external_effects_allowed": false
 }
