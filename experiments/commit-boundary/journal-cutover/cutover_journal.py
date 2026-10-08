@@ -16,6 +16,7 @@ from pathlib import Path
 PROTOCOL = "anet-checkpoint-journal/research-1"
 ZERO_HASH = "0" * 64
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
+HEX40 = re.compile(r"^[0-9a-f]{40}$")
 LABEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")
 
 
@@ -38,6 +39,11 @@ def digest(value):
 def check_hash(value, name):
     if not isinstance(value, str) or not HEX64.fullmatch(value):
         fail("INVALID_" + name)
+
+
+def check_commit(value):
+    if not isinstance(value, str) or not HEX40.fullmatch(value):
+        fail("INVALID_COMMIT_SHA")
 
 
 def check_label(value, name):
@@ -67,7 +73,7 @@ def current_state(conn, scope):
 def make_entry(scope, generation, commit_sha, sequence, prev_hash, key, payload_bytes):
     check_label(scope, "SCOPE")
     check_label(key, "KEY")
-    check_hash(commit_sha, "COMMIT")
+    check_commit(commit_sha)
     check_hash(prev_hash, "PREV_HASH")
     if type(generation) is not int or generation < 1 or type(sequence) is not int or sequence < 1:
         fail("INVALID_GENERATION_OR_SEQUENCE")
@@ -111,7 +117,8 @@ def verify_batch(batch):
     if batch.get("authority_authenticated") is not False or batch.get("external_effects_allowed") is not False:
         fail("UNSAFE_AUTHORITY_CLAIM")
     check_label(batch.get("scope"), "SCOPE")
-    for name in ["commit_sha", "base_head_hash", "base_effects_sha256", "target_head_hash", "entries_sha256"]:
+    check_commit(batch.get("commit_sha"))
+    for name in ["base_head_hash", "base_effects_sha256", "target_head_hash", "entries_sha256"]:
         check_hash(batch.get(name), name.upper())
     for name in ["generation", "base_sequence", "target_sequence", "base_count"]:
         v = batch.get(name)
