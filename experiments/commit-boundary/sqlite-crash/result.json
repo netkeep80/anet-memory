@@ -1,0 +1,25 @@
+{
+  "after_commit_before_ack_sigkill": "DURABLE_EFFECT_REPLAY_DEDUP_CONFIRMED",
+  "authority_regression": "REJECTED",
+  "before_commit_sigkill": "ROLLBACK_CONFIRMED",
+  "classification": "PASS_LOCAL_SQLITE_PROCESS_CRASH_REPLAY",
+  "concurrent_independent_processes": 8,
+  "concurrent_results": {
+    "ALREADY_APPLIED": 7,
+    "APPLIED": 1
+  },
+  "database_size_bytes": 28672,
+  "final_state": {
+    "commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "count": 4,
+    "effects": 4,
+    "generation": 2,
+    "state": "STATE"
+  },
+  "hostname": "5efcb0801173",
+  "runner_sha256": "80b76db0324e68ce0b1d9ea121ed8b9a9aab82596d7be3746acdc5136eb090c7",
+  "same_generation_fork": "REJECTED",
+  "script_sha256": "eae221cd62a8241d0ef73d03f2e4a716754d780bf3ee27e0de7a5c3e4a90ff6b",
+  "sqlite_version": "3.46.1",
+  "stale_worker": "REJECTED"
+}
