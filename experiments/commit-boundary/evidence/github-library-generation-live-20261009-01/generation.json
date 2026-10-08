@@ -1,13 +1,13 @@
 {
   "schema": "anet-github-library-generation/research-1",
   "scope": "anet-memory.github-library-live-20261009-01",
-  "generation": 1,
-  "predecessor_commit": null,
+  "generation": 2,
+  "predecessor_commit": "d51982ca84c7be2263fa5a4a21caa7ce509c39f5",
   "root": {
-    "path": "/anet-memory/v1/experiments/github-library-generation-live-20261009-01/g1.json",
-    "file_id": "file_00000000c30c81f4a49fb4c86375c44e",
-    "size_bytes": 218,
-    "sha256": "e8819403c850bc42a3e1e59b679467b4ce2192d9e064f1135fb1eefd633284fe"
+    "path": "/anet-memory/v1/experiments/github-library-generation-live-20261009-01/g2-a.json",
+    "file_id": "file_00000000d08882468c54a78dc4046a92",
+    "size_bytes": 209,
+    "sha256": "da259f4a317dd52e651fb75b0aa5afa25548c3c88c66259eea651c6ddcade0cd"
   },
   "application_effects_allowed": false
 }
