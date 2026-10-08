@@ -18,7 +18,7 @@ from stale_selector_containment import (
 )
 from selector_contract import make_selector, selector_bytes, sha256_bytes
 
-SCOPE = "anet-memory/commit-boundary/main"
+SCOPE = "anet-memory.commit-boundary.main"
 CONTROL = "11" * 32
 OLD_SECRET = "22" * 32
 NEW_SECRET = "33" * 32
