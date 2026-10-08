@@ -1,0 +1,8 @@
+{
+  "schema": "anet-pr-ledger/research-1",
+  "generation": 1,
+  "predecessor": "ceaad83423c98721adda2777c224823b705652b2",
+  "candidate": "A",
+  "library_selection_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "external_effects_allowed": false
+}
