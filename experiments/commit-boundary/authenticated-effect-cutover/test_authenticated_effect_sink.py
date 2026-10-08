@@ -81,6 +81,7 @@ class AuthenticatedEffectCutoverTests(unittest.TestCase):
         else: self.assertEqual(st['counter'],0)
 
     def test_many_real_process_races_preserve_linearization(self):
+        # Repeat isolated DBs so scheduling can produce either safe ordering.
         for i in range(8):
             db=Path(self.tmp.name)/f'race-{i}.sqlite'; init(db); install(db,SCOPE,1,C1,K1)
             sig=sign(K1,SCOPE,1,C1,'race',b'x')
