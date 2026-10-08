@@ -5,6 +5,22 @@ Owner: [#54](https://github.com/netkeep80/anet-memory/issues/54)
 Dependencies: [#7](https://github.com/netkeep80/anet-memory/issues/7), [#2](https://github.com/netkeep80/anet-memory/issues/2), [#35](https://github.com/netkeep80/anet-memory/issues/35)  
 Baseline: `b4ffba91f1a342d4864ccb6e45fea27722bf31f9`, 2026-10-08.
 
+## Target architecture
+
+The target ANet Memory architecture is deliberately minimal:
+
+```text
+ChatGPT Library JSON/files  = durable data plane
+GitHub                     = control plane / source of truth / commit authority
+ChatGPT chat/sandbox       = disposable executor
+```
+
+A fresh executor should be able to recover by reading GitHub authority, materializing the exact selected Library bytes, verifying their hashes/chains, and continuing. Library discovery itself is never treated as a commit oracle.
+
+No third-party transactional database is part of the target architecture. PostgreSQL/Supabase/Redis/etc. are out of scope. Existing daemon/SQLite experiments are retained only as historical research/falsifier evidence for crash, replay, idempotency and split-brain behavior; they are not required runtime components and must never become global authority.
+
+The current P0 is therefore specific: establish a GitHub-only safe transition `generation N -> N+1` that selects exact Library bytes and fails closed under competing writers, stale observations, rewind/delete/reuse and incomplete Library discovery.
+
 ## Problem
 
 ChatGPT Library listings and search results can temporarily omit files after successful uploads. It also auto-renames duplicate requested filenames on `overwrite=false`, so neither a pathname nor a successful listing is a uniqueness/linearizability oracle.
@@ -86,13 +102,38 @@ A proven Git ref serialization authority would require strict allowed writers, e
 
 Full direct GitHub evidence: [#54 comment 6057182314](https://github.com/netkeep80/anet-memory/issues/54#issuecomment-6057182314).
 
+### G4 — live competing-ref CAS and rewind falsifier (#68)
+
+PR #68 extended the ref test with eight disposable refs and candidates where B is a direct child of A while both claim the same logical lease from the original base.
+
+Observed final heads across the eight races were `A/B/A/B/A/B/A/B`: one final winner per ref. On four refs currently at A, a stale `expected_sha=base` attempt to advance to B was rejected 4/4 even though `A -> B` is a valid fast-forward; independent reads confirmed A remained current.
+
+The same live probe then falsified non-rewind authority under current repository governance:
+
+- `A -> base`, `force=false`: rejected as non-fast-forward;
+- `A -> base`, `force=true` with current expected head: **accepted**;
+- repository rulesets were empty at the time of the probe.
+
+Strict result:
+
+```text
+Git commit/ref expected-head CAS = useful serialization evidence
+Git ref under current permissions = NOT non-rewind authority
+shared GitHub write capability    = NOT designated-writer authentication
+```
+
+Therefore the next work is not to add a database. It is to determine whether GitHub itself can supply a write-once/non-rewind generation authority (for example through appropriately protected refs or immutable release commitments), and to bind that authority to exact Library JSON bytes.
+
+Evidence: [#54 comment 6069912311](https://github.com/netkeep80/anet-memory/issues/54#issuecomment-6069912311).
+
 ## Research directions
 
-1. Independent fresh-chat LC-02 consumer in [#7](https://github.com/netkeep80/anet-memory/issues/7), exact Library byte readback, no transcript.
-2. Test a *real* competing-writer ref race using a tool/API that gives unambiguous conditional-update outcomes, and record both branch history and losing responses. This repository's available Contents API connector explicitly advises against parallel writes on the same path; do not violate that contract to manufacture a race.
-3. Verify history no-rewind constraints by branch rules/permissions, or label them explicit external trust assumptions. A writable unprotected ref is not an immutable ledger.
-4. Tie a GitHub-authorized manifest commitment to independently read Library objects and verify exact SHA-256 in a genuinely fresh consumer. Partial listing => pending, conflicting Library objects not included in the commit => uncommitted/untrusted.
-5. Model downstream idempotent effects and stale-worker outputs separately from the Git commit record, including crash after effect but before ACK.
-6. Never use a fixed sleep or a single successful list as proof of globally complete discovery; no Library maximum visibility lag or strong listing guarantee has been established.
+1. Define the minimal canonical generation record in GitHub: generation, predecessor authority identity, exact Library object identifiers/paths, byte sizes and SHA-256 values.
+2. Prove or falsify a **GitHub-only non-rewind/write-once authority** for that record. Candidate surfaces may include protected refs/rulesets and Immutable Releases, but no property is accepted until it is live-tested on this repository.
+3. Require competing writers to converge to at most one accepted next generation. Ambiguous mutation errors are fail-closed and require an independent authoritative reread before retry.
+4. Tie the accepted GitHub generation record to independently materialized Library bytes. Partial Library discovery => pending; a Library object not selected by GitHub => uncommitted.
+5. Run the existing genuinely fresh consumer gates from separate fresh chats to prove recovery from GitHub + Library alone, without transcript replay or local state.
+6. Keep daemon/SQLite work as falsifiers/regression tests only. Do not introduce them, or any third-party database/service, as required authority infrastructure.
+7. Never use a fixed sleep or one successful Library list/search as proof of globally complete discovery; no maximum visibility lag or strong listing guarantee has been established.
 
 **Acceptance boundary:** #54 remains OPEN until a concrete commit/authority protocol passes adversarial, independent, multi-writer and recovery falsifiers. The module in this experiment is only a safe preliminary completeness checker.
