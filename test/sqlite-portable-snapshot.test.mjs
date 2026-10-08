@@ -78,3 +78,53 @@ print(json.dumps({'classification':'PASS_PORTABLE_SNAPSHOT_WAL',
     rmSync(scratch, { recursive: true, force: true });
   }
 });
+
+test('two writable clones of one exact checkpoint both accept a new same effect key (falsifier)', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'anet-sqlite-fork-'));
+  const script = String.raw`
+import json, pathlib, shutil, sqlite3, subprocess, sys
+sys.path.insert(0,sys.argv[1])
+from portable_snapshot import make_snapshot, verify_snapshot
+root=pathlib.Path(sys.argv[2])
+sink=pathlib.Path(sys.argv[3])
+source=root/'original.sqlite'
+snapshot=root/'portable-snapshot.sqlite'
+manifest=root/'manifest.json'
+copy=root/'restored.sqlite'
+con=sqlite3.connect(source)
+con.executescript("""
+CREATE TABLE authority (scope TEXT PRIMARY KEY, generation INTEGER NOT NULL, commit_sha TEXT NOT NULL);
+CREATE TABLE effects (scope TEXT NOT NULL, effect_key TEXT NOT NULL, generation INTEGER NOT NULL, commit_sha TEXT NOT NULL, digest TEXT NOT NULL, PRIMARY KEY (scope,effect_key));
+CREATE TABLE counters (scope TEXT PRIMARY KEY, value INTEGER NOT NULL);
+INSERT INTO authority VALUES ('run-54',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO counters VALUES ('run-54',0);
+""")
+con.close()
+make_snapshot(source,snapshot,manifest,'run-54','ci-fork')
+assert verify_snapshot(snapshot,manifest,'run-54')['state']=='SNAPSHOT_VERIFIED'
+shutil.copyfile(snapshot,copy)
+def apply(db):
+    p=subprocess.run([sys.executable,str(sink),'--db',str(db),'apply',
+      '--key','post-snapshot','--generation','2','--commit','b'*40],
+      text=True,capture_output=True,timeout=8,check=True)
+    return json.loads(p.stdout)['state']
+first=apply(source)
+second=apply(copy)
+assert (first,second)==('APPLIED','APPLIED')
+print(json.dumps({'classification':'DIVERGENT_SNAPSHOT_FALSIFIER','original':first,
+    'restored':second,'external_effects':False}))
+`;
+  try {
+    const out = execFileSync('python3', ['-c', script,
+      resolve('experiments/commit-boundary/sqlite-portable'), scratch,
+      resolve('experiments/commit-boundary/sqlite-crash/sqlite_effect_sink.py')],
+      { encoding: 'utf8', timeout: 20000 });
+    const result = JSON.parse(out);
+    assert.equal(result.classification, 'DIVERGENT_SNAPSHOT_FALSIFIER');
+    assert.equal(result.original, 'APPLIED');
+    assert.equal(result.restored, 'APPLIED');
+    assert.equal(result.external_effects, false);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});

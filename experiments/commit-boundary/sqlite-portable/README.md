@@ -93,3 +93,9 @@ The manifest explicitly states `authority_verification=NOT_PROVEN` and `external
 See [CONSUMER.md](CONSUMER.md). A truly new chat must independently verify the GitHub sources and pinned hashes, discover the exact Library objects, read/mount the exact bytes into its own new sandbox, verify SQLite integrity and scoped row-digest, and retry a known idempotency key without reapplying the effect. It must not use transcript/semantic handoff or prior local producer files.
 
 No edits to active endurance #26 or scheduled supervisor #52.
+
+## Additional adversarial check: a checkpoint does not globally deduplicate subsequent effects
+
+After the original snapshot had been finalized and uploaded, its producer SQLite file and a new writable clone of its exact Library-readback SQLite file independently received the same *new* synthetic effect key `after-snapshot` under generation 2. Both returned `APPLIED` and each local counter advanced from 5 to 6. The old checkpoint was byte-perfect and internally consistent; the two databases were simply not sharing a durable atomic uniqueness index. **No external effect was executed.**
+
+This is the expected but important **POST_SNAPSHOT_DIVERGENT_EFFECT_ACCEPTANCE_OBSERVED** counterexample; issue [#54 comment 6057752261](https://github.com/netkeep80/anet-memory/issues/54#issuecomment-6057752261). The CI regression in `test/sqlite-portable-snapshot.test.mjs` independently demonstrates the same property with two databases derived from one snapshot. **Passing this negative test must never be described as global exactly-once safety.** A verified snapshot is only an integrity-preserving transfer of a point-in-time state; safe cutover still requires a trusted writer fence, checkpoint selection, replay catch-up or shared transactional authority.
