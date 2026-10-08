@@ -2,8 +2,9 @@
   "protocol": "anet-commit-boundary-cas-probe/1",
   "run_id": "github-cas-stale-20261008-01",
   "epoch": 1,
-  "generation": 0,
-  "winner": null,
+  "generation": 1,
+  "winner": "candidate-A",
+  "candidate_commitment": "d8f5d660d37447159c11ead3b9d0d78f",
   "base_head_sha": "b4ffba91f1a342d4864ccb6e45fea27722bf31f9",
-  "notes": "Research fixture only; branch is not authority for active sandbox bus."
+  "notes": "Fixture only; this branch not authority for active sandbox bus."
 }
