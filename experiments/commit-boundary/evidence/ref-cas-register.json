@@ -1,8 +1,8 @@
 {
   "protocol": "anet-ref-cas-probe/1",
   "run_id": "git-ref-cas-20261008-01",
-  "generation": 1,
-  "writer": "A",
-  "commit_claim": "claim-A",
-  "note": "research-only isolated branch"
+  "generation": 2,
+  "writer": "B",
+  "commit_claim": "claim-B",
+  "note": "prepared descendant of A to isolate expected_sha mismatch from non-fast-forward"
 }
