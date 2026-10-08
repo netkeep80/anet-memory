@@ -21,6 +21,14 @@ The core idea is simple:
 
 Library listing/search completeness is therefore not needed to decide commitment. A consumer follows only the exact Library object selected by the current GitHub generation record.
 
+## Identity rule
+
+Human-readable run labels are **not** authority identifiers. A duplicated or reused `RUN_ID` must never merge two attempts semantically.
+
+Authoritative identity comes from the GitHub authority scope/head/commit chain plus the exact Library object identifiers and hashes selected by that chain. A prepublication attempt that never creates a Library object or Git authority commit cannot conflict with a later committed generation merely because it reused the same text label.
+
+Operationally, future experiments should still use unique attempt IDs to avoid audit confusion.
+
 ## Generation record
 
 A generation record is small control-plane metadata stored in GitHub:
