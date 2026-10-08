@@ -4,6 +4,12 @@ Status: **RESEARCH EVIDENCE / SAME CHAT / NO EXTERNAL EFFECTS**
 Owner: [#54](https://github.com/netkeep80/anet-memory/issues/54)  
 Run: `github-library-generation-live-20261009-01`
 
+## Audit note: reused run label
+
+A separate parallel attempt used the same textual run label `github-library-generation-live-20261009-01` but failed **before Library publication and before any Git authority mutation**. Its intended path and bytes differed and it created no competing committed state.
+
+This successful run is identified by the concrete authority branch/commits and exact Library `file_id + SHA-256` values recorded below. The duplicate text label is a process/audit defect, not an authority fork. Future attempts must use unique attempt IDs.
+
 ## Goal
 
 Execute the minimal protocol from the merged `github-library-generation` research against real ChatGPT Library objects and a real disposable GitHub authority ref.
