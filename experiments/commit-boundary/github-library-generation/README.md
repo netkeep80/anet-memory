@@ -100,6 +100,20 @@ Only one can become the authority head if both obey expected-head CAS. The loser
 
 No Library delete/rename is needed to resolve the race.
 
+## PR merge history is not generation authority
+
+A parallel disposable #54 probe produced an important negative result:
+
+- PR #71 candidate A and PR #72 candidate B both claimed logical generation 1 from the same predecessor;
+- #71 was merged into a disposable research base;
+- that base ref was then force-rewound;
+- #72 was subsequently also merged;
+- both PRs therefore remain `merged=true` while selecting different logical candidates for the same generation.
+
+So **"merged PR" is historical evidence, not a uniqueness oracle**. Consumers must not scan merged PRs and infer the current generation from merge status alone.
+
+The authoritative selector in this protocol is the current Git ref head plus its verified parent/generation chain. PRs may be used as a review workflow around candidate commits, but their merged state does not replace expected-head CAS or server-side no-rewind protection.
+
 ## Current hard boundary
 
 Live #68 evidence shows that expected-head Git ref updates provide useful CAS/serialization behavior, but the current repository/credential can also perform a deliberate `force=true` rewind.
