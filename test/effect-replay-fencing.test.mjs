@@ -8,7 +8,7 @@ const SCOPE = 'run-54';
 const bytes = (value) => Buffer.from(value, 'utf8');
 const effect = (overrides = {}) => ({
   scope: SCOPE, generation: 1, commit_sha: A,
-  effect_key: 'message-1/action-1', payload_bytes: bytes('same exact bytes'),
+  effect_key: 'message-1:action-1', payload_bytes: bytes('same exact bytes'),
   ...overrides,
 });
 
@@ -41,7 +41,7 @@ test('crash AFTER downstream transaction but BEFORE ACK: retry is deduplicated',
   const replay = sink.apply(effect());
   assert.equal(replay.state, 'ALREADY_APPLIED');
   assert.equal(sink.effectCount, 1);
-  assert.deepEqual(replay.receipt, sink.getReceipt(SCOPE, 'message-1/action-1'));
+  assert.deepEqual(replay.receipt, sink.getReceipt(SCOPE, 'message-1:action-1'));
 });
 
 test('crash BEFORE downstream commit: later delivery applies exactly once', () => {
@@ -113,10 +113,10 @@ test('old receipt can be inspected read-only while stale worker replay is reject
   const sink = new ResearchEffectSink();
   sink.installAuthority({ scope: SCOPE, generation: 1, commit_sha: A });
   sink.apply(effect());
-  const receipt = sink.getReceipt(SCOPE, 'message-1/action-1');
+  const receipt = sink.getReceipt(SCOPE, 'message-1:action-1');
   sink.installAuthority({ scope: SCOPE, generation: 2, commit_sha: B });
   assert.equal(sink.apply(effect()).state, 'STALE_OR_FUTURE_GENERATION');
-  assert.deepEqual(sink.getReceipt(SCOPE, 'message-1/action-1'), receipt);
+  assert.deepEqual(sink.getReceipt(SCOPE, 'message-1:action-1'), receipt);
   assert.equal(sink.effectCount, 1);
 });
 
@@ -126,7 +126,7 @@ test('scope isolation and independent message idempotency keys', () => {
   sink.installAuthority({ scope: 'other-run', generation: 1, commit_sha: B });
   assert.equal(sink.apply(effect()).state, 'APPLIED');
   assert.equal(sink.apply(effect({ scope: 'other-run', commit_sha: B })).state, 'APPLIED');
-  assert.equal(sink.apply(effect({ effect_key: 'message-2/action-1' })).state, 'APPLIED');
+  assert.equal(sink.apply(effect({ effect_key: 'message-2:action-1' })).state, 'APPLIED');
   assert.equal(sink.effectCount, 3);
 });
 
