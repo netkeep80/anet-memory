@@ -1,0 +1,16 @@
+{
+  "protocol": "anet-commit-selection/research-1",
+  "run_id": "libcap-manifest-20261008-03",
+  "epoch": "epoch-1",
+  "authority_ref": "refs/heads/research/library-git-authority-20261008-01",
+  "expected_parent_commit_sha": "007b38ae8ee2fa0967ad8e6ce78f724d76e7e2e4",
+  "selected_manifest": {
+    "library_path": "/anet-memory/experiments/library-consistency/libcap-manifest-20261008-03/manifest.json",
+    "file_id": "file_000000003d5c81f4b6dbbc7ffe2b3aae",
+    "size_bytes": 872,
+    "sha256": "b4b56bb7ac501ffb71099d32abbd0f19053266310b6fb43bc6b67f10e400f116"
+  },
+  "application_effects_allowed": false,
+  "trust_scope": "experiment branch + observed GitHub API; not an accepted distributed lock",
+  "notes": "Research selects this exact manifest; competing Library manifest(1).json remains unselected and non-authoritative."
+}
