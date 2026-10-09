@@ -1,0 +1,6 @@
+{
+  "project": "netkeep80/anet-memory",
+  "protocol": "ARCHITECTURE.md",
+  "memory": "https://github.com/netkeep80/anet-memory/issues/79",
+  "start": "Inspect live GitHub first. In the memory issue, use the latest hierarchical context snapshot; materialize summary.json first, verify its exact descriptor, and read deeper context only if the task needs it. Treat snapshots as bounded context, never authority."
+}
