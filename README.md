@@ -1,6 +1,6 @@
 # ANet Memory
 
-Relation-native persistent memory and bounded context projection for AI agents, with FORMAL/JSON interchange and pluggable transport backends.
+Persistent multi-project memory, bounded context projection and lightweight inter-session communication for AI agents/chats.
 
 ## Core idea
 
@@ -18,20 +18,34 @@ The project treats a chat context as working memory, not as the durable source o
 
 ## Architecture
 
+Current target:
+
 ```text
-AI chat / agent
-      |
-      v
-bounded context projection
-      |
-      v
-persistent ANet memory
-      |
-      v
-transport / storage adapters
+GitHub
+  control plane / repository authority / source of truth
+        |
+        v
+ChatGPT Library
+  durable JSON/files data plane
+        |
+        v
+disposable ChatGPT sessions
+  bounded working context
 ```
 
-The first experimentally proven cross-chat transport is ChatGPT Library: two isolated Kata execution sandboxes exchanged byte-identical files through Library upload -> lookup -> materialize while direct sandbox-to-sandbox networking remained unavailable.\n\nRuntime-topology experiments additionally established that a scheduled/model worker can communicate bidirectionally with a live daemon over localhost when both share a sandbox, but sandbox affinity and `/mnt/data` persistence are not durable. The supported design boundary is therefore **Library-backed durable cross-sandbox transport plus a verified localhost fast path inside a shared live sandbox**. See [`experiments/runtime-topology/README.md`](experiments/runtime-topology/README.md).
+The project is moving from transport research toward a **minimal multi-project memory and messaging architecture**:
+
+- repositories advertise their ANet binding through a tiny repo-local bootstrap;
+- GPT first loads short global/project summaries and follows references only as needed;
+- durable notes may link to other notes, GitHub, external resources and Library attachments;
+- sessions may exchange short messages plus references instead of copying large contexts;
+- roles such as “director”, “worker” or “auditor” are dynamic behavioral patterns, not protocol types;
+- a disposable session supervisor may nudge GPT to checkpoint useful knowledge, but is not storage or semantic authority;
+- protocol structure stays strict only for identity, addressing, integrity and authority; semantic meaning prefers natural language.
+
+The current architecture direction and its explicit non-goals are canonicalized in [`ARCHITECTURE.md`](ARCHITECTURE.md) and tracked by [#79](https://github.com/netkeep80/anet-memory/issues/79).
+
+The first experimentally proven cross-chat transport is ChatGPT Library. Later experiments established GitHub current-generation selection plus exact Library object recovery in a genuinely fresh chat. Historical daemon/SQLite/runtime-topology experiments remain useful falsifier evidence but are not target runtime authority.
 
 ## Project authority
 
@@ -44,7 +58,9 @@ The first experimentally proven cross-chat transport is ChatGPT Library: two iso
 - Fresh-chat bootstrap: #6
 - Library consistency research: #7
 - A-memory/backend abstraction: #8
-- Evaluation: #9\n- ChatGPT runtime topology research: #43 and `experiments/runtime-topology/README.md`
+- Evaluation: #9
+- Current multi-project architecture direction: #79 and `ARCHITECTURE.md`
+- ChatGPT runtime topology research: #43 and `experiments/runtime-topology/README.md`
 
 This repository does not define a new MTS ontology. FORMAL/MTS semantics remain owned by their upstream specification.
 
