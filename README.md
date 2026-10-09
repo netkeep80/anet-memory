@@ -45,9 +45,9 @@ The project is moving from transport research toward a **minimal multi-project m
 
 The current architecture direction and its explicit non-goals are canonicalized in [`ARCHITECTURE.md`](ARCHITECTURE.md) and tracked by [#79](https://github.com/netkeep80/anet-memory/issues/79).
 
-Fresh-chat discovery experiment: [`.anet/memory.json`](.anet/memory.json) is the current **non-normative** repo-local bootstrap candidate tracked by [#81](https://github.com/netkeep80/anet-memory/issues/81).
+Fresh-chat discovery: [`.anet/memory.json`](.anet/memory.json) is the current **non-normative** repo-local bootstrap candidate. E1 [#81](https://github.com/netkeep80/anet-memory/issues/81) functionally proved repository-identity -> bootstrap -> bounded exact context recovery; the PASS does not freeze a universal bootstrap schema.
 
-The first experimentally proven cross-chat transport is ChatGPT Library. Later experiments established GitHub current-generation selection plus exact Library object recovery in a genuinely fresh chat. Historical daemon/SQLite/runtime-topology experiments remain useful falsifier evidence but are not target runtime authority.
+The first experimentally proven cross-chat transport is ChatGPT Library. Later experiments established GitHub current-generation selection plus exact Library object recovery in a genuinely fresh chat. The #79 E1-E5 sequence is now functionally complete: repo bootstrap, three-chat continuation, lazy hypermedia traversal, semantic checkpointing and dynamic orchestration have all passed their bounded acceptance gates. Historical daemon/SQLite/runtime-topology experiments remain useful falsifier evidence but are not target runtime authority.
 
 ## Project authority
 
@@ -62,6 +62,8 @@ The first experimentally proven cross-chat transport is ChatGPT Library. Later e
 - A-memory/backend abstraction: #8
 - Evaluation: #9
 - Current multi-project architecture direction: #79 and `ARCHITECTURE.md`
+- Commit-selection / incomplete Library discovery research: #54 and `experiments/commit-boundary/README.md`
+- Deferred GitHub non-rewind hardening: #87
 - ChatGPT runtime topology research: #43 and `experiments/runtime-topology/README.md`
 
 This repository does not define a new MTS ontology. FORMAL/MTS semantics remain owned by their upstream specification.
