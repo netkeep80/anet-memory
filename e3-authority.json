@@ -1,0 +1,14 @@
+{
+  "schema": "anet-hypermedia-root/research-1",
+  "scope": "anet-memory.e3-hypermedia-20261009",
+  "generation": 1,
+  "base_main": "c2e3343788b439c9891d7616b640af211831a219",
+  "root": {
+    "path": "/anet-memory/v1/experiments/e3-hypermedia-20261009/summary.json",
+    "file_id": "file_00000000c82881f4847cc9d6991ef3c5",
+    "size_bytes": 2021,
+    "sha256": "3d88376846e6402beaf5f9f6d903c97bc88a2d80299542833c9b4915ac6115dc"
+  },
+  "application_effects_allowed": false,
+  "note": "Research selector only. GitHub selects the bounded root; consumers follow exact descriptors lazily."
+}
