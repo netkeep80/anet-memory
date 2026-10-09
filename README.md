@@ -1,6 +1,6 @@
 # ANet Memory
 
-Relation-native persistent memory and bounded context projection for AI agents, with FORMAL/JSON interchange and pluggable transport backends.
+Persistent multi-project memory, bounded context projection and lightweight inter-session communication for AI agents/chats.
 
 ## Core idea
 
@@ -58,7 +58,9 @@ The first experimentally proven cross-chat transport is ChatGPT Library. Later e
 - Fresh-chat bootstrap: #6
 - Library consistency research: #7
 - A-memory/backend abstraction: #8
-- Evaluation: #9\n- ChatGPT runtime topology research: #43 and `experiments/runtime-topology/README.md`
+- Evaluation: #9
+- Current multi-project architecture direction: #79 and `ARCHITECTURE.md`
+- ChatGPT runtime topology research: #43 and `experiments/runtime-topology/README.md`
 
 This repository does not define a new MTS ontology. FORMAL/MTS semantics remain owned by their upstream specification.
 
