@@ -1,0 +1,13 @@
+{
+  "schema": "anet-github-library-generation/research-1",
+  "scope": "anet-memory.e2-three-chat-20261009",
+  "generation": 1,
+  "predecessor_commit": "c2e3343788b439c9891d7616b640af211831a219",
+  "root": {
+    "path": "/anet-memory/v1/experiments/e2-three-chat-20261009/generation-1.json",
+    "file_id": "file_000000002e2c81f4bbc2fcc09cf843c5",
+    "size_bytes": 453,
+    "sha256": "5f17032a007426dfcaf1094965580de0a6ad89a716bcd7899ed5940ee46f925d"
+  },
+  "application_effects_allowed": false
+}
