@@ -1,9 +1,11 @@
 # Safe commit boundaries over Library transport — experimental research
 
-Status: **RESEARCH ONLY, NOT AN ACCEPTED COMMIT OR FENCING PROTOCOL**  
-Owner: [#54](https://github.com/netkeep80/anet-memory/issues/54)  
-Dependencies: [#7](https://github.com/netkeep80/anet-memory/issues/7), [#2](https://github.com/netkeep80/anet-memory/issues/2), [#35](https://github.com/netkeep80/anet-memory/issues/35)  
-Baseline: `b4ffba91f1a342d4864ccb6e45fea27722bf31f9`, 2026-10-08.
+Status: **BOUNDED FUNCTIONAL ACCEPTANCE FOR MEMORY COMMIT SELECTION; NOT AN EXACTLY-ONCE EFFECT PROTOCOL**  
+Owner/research record: [#54](https://github.com/netkeep80/anet-memory/issues/54)  
+Hardening follow-up: [#87](https://github.com/netkeep80/anet-memory/issues/87)  
+Effect/scheduler engineering: [#52](https://github.com/netkeep80/anet-memory/issues/52)  
+Dependencies/evidence: [#7](https://github.com/netkeep80/anet-memory/issues/7), [#2](https://github.com/netkeep80/anet-memory/issues/2), [#35](https://github.com/netkeep80/anet-memory/issues/35)  
+Original research baseline: `b4ffba91f1a342d4864ccb6e45fea27722bf31f9`, 2026-10-08.
 
 ## Target architecture
 
@@ -19,7 +21,7 @@ A fresh executor should be able to recover by reading GitHub authority, material
 
 No third-party transactional database is part of the target architecture. PostgreSQL/Supabase/Redis/etc. are out of scope. Existing daemon/SQLite experiments are retained only as historical research/falsifier evidence for crash, replay, idempotency and split-brain behavior; they are not required runtime components and must never become global authority.
 
-The current P0 is therefore specific: establish a GitHub-only safe transition `generation N -> N+1` that selects exact Library bytes and fails closed under competing writers, stale observations, rewind/delete/reuse and incomplete Library discovery.
+The bounded commit-selection question is now answered for the current research model: GitHub expected-head generation advancement selects one exact Library object, losing/orphan Library objects remain uncommitted, and a fresh consumer can reconstruct the selected generation without relying on Library listing/search completeness. Server-side protection against an administrator/capability rewinding or deleting the authority ref is a deliberately deferred hardening layer (#87), not silently assumed.
 
 ## Problem
 
@@ -126,14 +128,56 @@ Therefore the next work is not to add a database. It is to determine whether Git
 
 Evidence: [#54 comment 6069912311](https://github.com/netkeep80/anet-memory/issues/54#issuecomment-6069912311).
 
-## Research directions
+## Accepted bounded result
 
-1. Define the minimal canonical generation record in GitHub: generation, predecessor authority identity, exact Library object identifiers/paths, byte sizes and SHA-256 values.
-2. Prove or falsify a **GitHub-only non-rewind/write-once authority** for that record. Candidate surfaces may include protected refs/rulesets and Immutable Releases, but no property is accepted until it is live-tested on this repository.
-3. Require competing writers to converge to at most one accepted next generation. Ambiguous mutation errors are fail-closed and require an independent authoritative reread before retry.
-4. Tie the accepted GitHub generation record to independently materialized Library bytes. Partial Library discovery => pending; a Library object not selected by GitHub => uncommitted.
-5. Run the existing genuinely fresh consumer gates from separate fresh chats to prove recovery from GitHub + Library alone, without transcript replay or local state.
-6. Keep daemon/SQLite work as falsifiers/regression tests only. Do not introduce them, or any third-party database/service, as required authority infrastructure.
-7. Never use a fixed sleep or one successful Library list/search as proof of globally complete discovery; no maximum visibility lag or strong listing guarantee has been established.
+The combined research now establishes the following memory-commit boundary:
 
-**Acceptance boundary:** #54 remains OPEN until a concrete commit/authority protocol passes adversarial, independent, multi-writer and recovery falsifiers. The module in this experiment is only a safe preliminary completeness checker.
+```text
+candidate bytes in ChatGPT Library
+        |
+        | exact file_id + size + SHA-256
+        v
+candidate Git generation commit
+        |
+        | expected-head ref update + authoritative reread
+        v
+current GitHub authority head
+        |
+        | exact selected Library object only
+        v
+fresh disposable consumer
+```
+
+Evidence includes:
+
+- closed-batch missing-dependency and competing-manifest falsifiers;
+- blob-SHA ABA falsifier;
+- live competing expected-head Git ref races with one selected head;
+- a real GitHub + Library generation race where both Library candidates remained visible but only one was selected;
+- answer-blind fresh-chat replay of the current Git generation chain and exact selected Library bytes;
+- repeated observations that Library listing/search can omit an object that exact `file_id` access can read.
+
+For this bounded model:
+
+- `VISIBLE` or `BATCH_COMPLETE` never implies `COMMITTED`;
+- `COMMITTED` means selected by the current validated GitHub authority chain under the expected-head protocol;
+- losing/unreferenced Library objects are not committed regardless of visibility;
+- missing selected Library bytes => pending/fail closed, never fallback by discovery heuristics;
+- `COMMITTED` does **not** imply `APPLIED` or exactly-once external effects.
+
+## Explicit assumptions and deferred limits
+
+The functional acceptance does **not** claim protection against a principal with sufficient GitHub authority deliberately rewriting history. Live #68 proved that an unprotected ref could be force-rewound. The prepared ruleset contract from PR #77 is retained, while activation/live proof is explicitly deferred and tracked in #87.
+
+External irreversible side effects remain outside this acceptance boundary. Any such effect requires its own idempotency/fencing semantics; production scheduler/effect engineering remains in #52.
+
+Library discovery is treated as a liveness/convenience mechanism, never an authority or global completeness oracle.
+
+## Follow-up ownership
+
+- **#87:** deferred GitHub server-side non-rewind/delete hardening for `refs/heads/anet-authority/**`.
+- **#52:** production scheduler overlap, fencing, durable delivery and irreversible-effect handling.
+- **#7:** additional Library consistency/latency characterization when it materially affects behavior.
+- **#79 / ARCHITECTURE.md:** architecture evolution and useful multi-project memory behavior.
+
+No third-party transactional database/service is required by the accepted target architecture. daemon/SQLite experiments remain falsifier/regression evidence only.
