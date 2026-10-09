@@ -43,7 +43,7 @@ Current target constraints:
 - Library discovery/list completeness is not an authority primitive;
 - exact selected `file_id` + byte metadata may be used when exact object identity matters.
 
-The fresh-chat GitHub -> Library reconstruction path is experimentally proven in #78.
+The fresh-chat GitHub -> Library reconstruction path is experimentally proven in #78. The E1-E5 research series in #79 is now functionally complete: repo bootstrap discovery, three-chat continuation, hypermedia lazy traversal, semantic checkpointing and dynamic orchestration all have bounded PASS evidence. Strict blind isolation remains separately classified where it was not established.
 
 ## 3. Multi-project memory
 
@@ -187,7 +187,7 @@ fresh chat
   -> lazy traversal as required
 ```
 
-The concrete bootstrap JSON schema is not accepted until tested.
+The current `.anet/memory.json` candidate passed the E1 repo-identity bootstrap experiment, but remains deliberately non-normative: the experiment validates the discovery behavior, not a frozen universal schema.
 
 ## 8. Communication between sessions
 
@@ -253,7 +253,7 @@ No role state machine is required in the core protocol.
 
 ## 10. Shallow orchestration pattern
 
-A useful pattern to test is:
+The E5 experiment demonstrated the following useful pattern without requiring fixed protocol roles:
 
 ```text
 shallow coordinating session
@@ -275,7 +275,7 @@ This pattern is optional and dynamically constructed; it is not a mandatory topo
 
 ## 11. Session supervision and memory checkpoints
 
-A local session supervisor may be useful to prevent GPT from finishing important work without considering memory maintenance.
+E4 demonstrated that a disposable semantic checkpoint trigger can reliably prompt GPT to consider memory maintenance without becoming semantic authority. Production scheduling, overlap and fencing remain separate engineering concerns in #52.
 
 Possible first implementation:
 
@@ -367,72 +367,40 @@ If the third answer is “no”, keep the simpler design.
 
 Target scale for routine objects should remain small enough that GPT can understand them immediately rather than “operate the protocol”.
 
-## 14. Next experiments
+## 14. E1-E5 research checkpoint
 
 Tracked by #79.
 
-### E1 — repository bootstrap discovery
+The architecture sequence has now been exercised end-to-end at the functional level:
 
-Give a genuinely fresh chat only a GitHub project repository identity.
+- **E1 repo bootstrap discovery — PASS:** a fresh consumer given only `netkeep80/anet-memory` discovered `.anet/memory.json`, followed the bounded pointer and recovered exact selected context.
+- **E2 three-chat continuation — PASS:** A -> B -> C durable knowledge continuation worked; strict no-ambient-memory blind isolation was not claimed.
+- **E3 hypermedia memory — PASS:** question-dependent traversal selected summary/note/evidence/attachment paths without loading the whole corpus.
+- **E4 semantic checkpoint — PASS:** a disposable trigger produced bounded SAVE vs NO_DURABLE_CHANGE decisions while GitHub remained authority.
+- **E5 dynamic orchestration — PASS:** shallow and detailed sessions delegated, executed, returned and audited work through short natural-language instructions plus references, with no fixed role enum or workflow state machine.
 
-It must discover the ANet binding from the repository and recover a bounded project summary without a hand-written connection prompt.
-
-### E2 — three-chat continuation
-
-```text
-Chat A
-  publishes project memory generation N
-
-fresh Chat B
-  discovers/reconstructs N
-  adds useful durable knowledge
-  publishes N+1
-
-fresh Chat C
-  independently discovers/reconstructs N+1
-  proves old + new knowledge survived
-```
-
-### E3 — hypermedia memory
-
-Include:
-
-- a concise project summary;
-- at least one durable note;
-- an external URL;
-- an exact Library attachment;
-- a relation to another note or project object.
-
-The fresh consumer should load only the levels needed by its question.
-
-### E4 — session supervisor checkpoint
-
-Demonstrate that a disposable supervisor reliably causes GPT to consider notes/messages at important semantic transitions without becoming authority or producing excessive noise.
-
-### E5 — dynamic orchestration
-
-Demonstrate a shallow-context coordinating chat directing a deeper project chat using short messages and references.
-
-No fixed DIRECTOR/WORKER protocol types are allowed.
+These results validate the architectural direction, not a universal wire schema. New protocol structure should still require a concrete falsifier before being made mandatory.
 
 ## 15. Current architectural boundary
 
 Already demonstrated:
 
-- Library-backed durable exact objects;
-- GitHub current-generation selection;
-- competing-writer CAS single-winner behavior;
-- genuinely fresh-chat reconstruction from current Git authority to exact selected Library bytes.
+- Library-backed durable exact objects and byte-identity verification;
+- GitHub current-generation selection of exact Library objects;
+- competing-writer expected-head CAS with a single selected winner in live research runs;
+- genuinely fresh-chat reconstruction from current Git authority to exact selected Library bytes;
+- repo-local automatic ANet discovery from a repository identity;
+- multi-generation A -> B -> C continuation;
+- bounded hypermedia/lazy traversal including exact Library attachments;
+- semantic checkpointing without making the trigger authoritative;
+- dynamic shallow/deep orchestration without fixed agent-role protocol types.
 
-Explicitly not yet demonstrated:
+Current explicit limits:
 
-- repo-local automatic ANet discovery;
-- multi-generation three-chat continuation;
-- useful hierarchical note retrieval at scale;
-- attachment/reference traversal as project memory;
-- reliable memory checkpoints;
-- dynamic orchestration through ANet messages;
-- different-sandbox classification for the latest fresh consumer;
-- server-side GitHub non-rewind, which is deferred.
+- GitHub server-side non-rewind/delete protection is **not proven and is intentionally deferred**; follow-up hardening is tracked by #87;
+- irreversible/exactly-once external effects are **not implied by memory commitment** and remain a separate engineering boundary (#52);
+- Library listing/search completeness is not assumed; exact GitHub-selected identity plus byte verification is the supported path;
+- strict blind isolation is reported separately per experiment and must not be inferred from functional PASS;
+- no platform-wide sandbox lifetime, Library retention or visibility SLA is claimed.
 
-The next work should improve useful memory behavior rather than add infrastructure unless an experiment forces additional infrastructure.
+The next work should improve useful multi-project memory behavior and real project adoption rather than add infrastructure or protocol fields unless a new experiment forces them.
